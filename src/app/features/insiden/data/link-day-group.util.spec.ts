@@ -1,3 +1,4 @@
+import { formatDate } from "@angular/common";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { klDateKey } from "../../../core/time/kl-date";
@@ -7,11 +8,12 @@ import {
   linkDayLabel,
   linkDisplayInstant,
 } from "./link-day-group.util";
+import { mytInstant, naiveMyt, SPEC_ZONES } from "./naive-myt.testing";
 
 // The F007 bugs (a naive wall time read in the viewer's zone, a date-only key shifted by the "UTC"
 // pipe) show in one zone or the other, so the zone-sensitive specs run in both: UTC is the SSR
 // server's zone, Kuala Lumpur the browser's.
-const ZONES = ["UTC", "Asia/Kuala_Lumpur"];
+const ZONES = SPEC_ZONES;
 
 describe("linkDisplayInstant", () => {
   it("prefers the event time and falls back to the submission time", () => {
@@ -186,5 +188,75 @@ describe.each(ZONES)("groupLinksByDay in %s", (tz) => {
     expect(groups[0].key).toBe("");
     expect(groups[0].label).toBe("");
     expect(groups[0].items.map((link) => link.id)).toEqual(["x", "y"]);
+  });
+});
+
+describe.each(ZONES)("the API's naive times across 00:00-08:00 Kuala Lumpur, in %s", (tz) => {
+  beforeEach(() => {
+    vi.stubEnv("TZ", tz);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // 05:23 MYT on 1 October, which is still 30 September (21:23) in UTC.
+    vi.setSystemTime(mytInstant("2026-10-01", "05:23:15"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  // Exactly the API's shapes: microseconds, the last second of a day, and midnight.
+  const links = [
+    { id: "a", created: naiveMyt("2026-10-01", "05:23:15", 833490) },
+    { id: "b", created: naiveMyt("2026-10-01", "00:00:00") },
+    { id: "c", created: naiveMyt("2026-09-30", "23:59:59") },
+  ];
+
+  it("runs in the zone it names", () => {
+    // Guards the matrix itself: a stubbed TZ that never reached Date would test one zone twice.
+    expect(new Date(Date.UTC(2026, 9, 1)).getTimezoneOffset()).toBe(tz === "UTC" ? 0 : -480);
+  });
+
+  it("keys each time by its own Malaysian day", () => {
+    expect(links.map((link) => linkDateKey(link.created))).toEqual([
+      "2026-10-01",
+      "2026-10-01",
+      "2026-09-30",
+    ]);
+  });
+
+  it("puts the early-morning rows under Today and the night before under Yesterday", () => {
+    const todayKey = klDateKey();
+    // The UTC date would still say the 30th and move every row a day back.
+    expect(todayKey).toBe("2026-10-01");
+    expect(new Date().toISOString().slice(0, 10)).toBe("2026-09-30");
+
+    const groups = groupLinksByDay(links, todayKey);
+
+    expect(groups.map((group) => [group.key, group.label])).toEqual([
+      ["2026-10-01", "Today"],
+      ["2026-09-30", "Yesterday"],
+    ]);
+    expect(groups.map((group) => group.items.map((link) => link.id))).toEqual([["a", "b"], ["c"]]);
+  });
+
+  it("turns Today over at 00:00 Kuala Lumpur, not at 08:00", () => {
+    vi.setSystemTime(mytInstant("2026-09-30", "23:59:59"));
+    expect(groupLinksByDay(links, klDateKey()).map((group) => group.label)).toEqual(["", "Today"]);
+
+    vi.setSystemTime(mytInstant("2026-10-01"));
+    expect(groupLinksByDay(links, klDateKey()).map((group) => group.label)).toEqual([
+      "Today",
+      "Yesterday",
+    ]);
+  });
+
+  it("heads an older day with that day's date", () => {
+    vi.setSystemTime(mytInstant("2026-10-05", "05:23:15"));
+    const [, older] = groupLinksByDay(links, klDateKey());
+
+    expect(older.label).toBe("");
+    // How the link list renders the key (a UTC-midnight date through the "UTC" DatePipe).
+    expect(formatDate(`${older.key}T00:00:00Z`, "MMMM d, y", "en-US", "UTC")).toBe(
+      "September 30, 2026",
+    );
   });
 });

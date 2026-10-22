@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { klDateKey } from "../../../core/time/kl-date";
 import {
   CALENDAR_WINDOW_PAD_DAYS,
   calendarMonthRange,
@@ -5,6 +8,7 @@ import {
   incidentCoversDate,
 } from "./calendar-date.util";
 import { CalendarIncident } from "./insiden.queries";
+import { mytInstant, naiveMyt, SPEC_ZONES } from "./naive-myt.testing";
 
 function createMockIncident(
   startDatetime: string,
@@ -129,5 +133,48 @@ describe("incidentCoversDate", () => {
       expect(incidentCoversDate(incident, "2026-06-01")).toBe(true);
       expect(incidentCoversDate(incident, "2026-06-02")).toBe(false);
     });
+  });
+});
+
+describe.each(SPEC_ZONES)("the API's naive times across 00:00-08:00 Kuala Lumpur, in %s", (tz) => {
+  beforeEach(() => {
+    vi.stubEnv("TZ", tz);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // 05:23 MYT on 1 October, which is still 30 September (21:23) in UTC.
+    vi.setSystemTime(mytInstant("2026-10-01", "05:23:15"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it("puts an incident on the Malaysian day of its naive start and end", () => {
+    const lastSecond = createMockIncident(
+      naiveMyt("2026-09-30", "23:59:59"),
+      naiveMyt("2026-10-01", "00:00:00"),
+    );
+    const earlyMorning = createMockIncident(naiveMyt("2026-10-01", "05:23:15", 833490), null);
+
+    expect(incidentCoversDate(lastSecond, "2026-09-30")).toBe(true);
+    expect(incidentCoversDate(lastSecond, "2026-10-01")).toBe(true);
+    expect(incidentCoversDate(lastSecond, "2026-10-02")).toBe(false);
+    expect(incidentCoversDate(earlyMorning, "2026-09-30")).toBe(false);
+    expect(incidentCoversDate(earlyMorning, "2026-10-01")).toBe(true);
+  });
+
+  it("finds an incident from 05:23 on Today, the Kuala Lumpur day, and its month's window", () => {
+    const today = klDateKey();
+    const earlyMorning = createMockIncident(naiveMyt("2026-10-01", "05:23:15", 833490), null);
+
+    expect(today).toBe("2026-10-01");
+    expect(incidentCoversDate(earlyMorning, today)).toBe(true);
+    expect(calendarMonthRange(today.slice(0, 7))).toEqual({
+      start: "2026-09-17",
+      end: "2026-11-14",
+    });
+    // Why dateKeyOf must never be handed the clock: it is still the 30th in UTC, which would open
+    // September and miss the incident.
+    expect(dateKeyOf(new Date())).toBe("2026-09-30");
+    expect(incidentCoversDate(earlyMorning, dateKeyOf(new Date()))).toBe(false);
   });
 });
