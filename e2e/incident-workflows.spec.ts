@@ -144,6 +144,47 @@ test.describe("incident workflows", () => {
       .toContain("ApproveIncident");
   });
 
+  test("ADMIN: reject a pending incident with a reason from the console queue", async ({
+    page,
+  }) => {
+    await configureMock({
+      PendingIncidents: {
+        pendingCalendarIncidents: [
+          {
+            ...INCIDENT,
+            id: "901",
+            title: "Duplicate platform report",
+            created: "2026-08-20T03:00:00Z",
+          },
+        ],
+      },
+      RejectIncident: { rejectCalendarIncident: { ok: true } },
+      ConsoleCategories: { calendarIncidentCategories: [] },
+      InsidenReferenceData: REFERENCE_DATA,
+    });
+
+    const token = await loginAs(page, { admin: true });
+    await page.goto("/console/insiden/pending");
+
+    const row = page.locator("tr").filter({ hasText: "Duplicate platform report" });
+    await row.getByRole("button", { name: "Reject" }).click();
+
+    // The reason is required: Submit stays off until the admin has typed one.
+    const confirm = page.getByRole("button", { name: "Reject incident" });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel(/Rejection reason/).fill("Duplicate of an existing incident");
+    await confirm.click();
+
+    await expect(page.getByText("Incident rejected")).toBeVisible();
+    await expect(row).toHaveCount(0);
+    const rejectCall = (await recordedCalls()).find((c) => c.operationName === "RejectIncident");
+    expect(rejectCall?.variables).toEqual({
+      incidentId: "901",
+      reason: "Duplicate of an existing incident",
+    });
+    expect(rejectCall?.authKey).toBe(token);
+  });
+
   test("ADMIN: mark a social media link completed from the triage page", async ({ page }) => {
     await configureMock({
       ConsoleSocialMediaLinks: {
