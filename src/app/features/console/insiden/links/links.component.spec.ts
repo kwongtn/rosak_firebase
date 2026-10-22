@@ -442,6 +442,59 @@ describe("SocialMediaLinksComponent", () => {
     expect(options).toContain("Signal");
   });
 
+  it("keeps a vehicle tagged without its line in the edit panel's vehicle options", async () => {
+    const component = fixture.componentInstance as unknown as {
+      referenceResource: { reload(): void };
+      vehicleOptions: () => { id: string }[];
+    };
+    component.referenceResource.reload();
+    fixture.detectChanges();
+    httpMock
+      .expectOne((r) => r.method === "POST")
+      .flush({
+        data: {
+          lines: [
+            {
+              id: "l1",
+              code: "KJL",
+              displayName: "Kelana Jaya",
+              vehicleTypes: [
+                {
+                  id: "t1",
+                  displayName: "Train",
+                  vehicles: [{ id: "v1", identificationNo: "18" }],
+                },
+              ],
+            },
+            {
+              id: "l2",
+              code: "AGL",
+              displayName: "Ampang",
+              vehicleTypes: [
+                {
+                  id: "t2",
+                  displayName: "Train",
+                  vehicles: [{ id: "v2", identificationNo: "42" }],
+                },
+              ],
+            },
+          ],
+          stations: [],
+          calendarIncidentCategories: [],
+        },
+      });
+    await fixture.whenStable();
+
+    asTestable(fixture).openLinkDetail(
+      makeLink({
+        lines: [{ id: "l2", code: "AGL", displayName: "Ampang" }],
+        vehicles: [{ id: "v1", identificationNo: "18" }],
+      }),
+    );
+
+    expect(component.vehicleOptions().map((option) => option.id)).toEqual(["v2", "v1"]);
+  });
+
   it("debounces typing and refetches once with the trimmed term after 300ms", async () => {
     await initialLoadsSettled(asTestable(fixture));
     vi.useFakeTimers();

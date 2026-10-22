@@ -1,13 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { InsidenReferenceQueryData } from "../../../insiden/data/insiden.queries";
 import {
-  categoryOptionsOf,
   filterStationOptionsOf,
   filterVehicleOptionsOf,
   indexLinesById,
-  lineOptionsOf,
-  stationOptionsOf,
-  vehicleOptionsOf,
   vehicleParentCodesOf,
 } from "./link-reference.util";
 
@@ -47,22 +43,9 @@ const data: InsidenReferenceQueryData = {
 
 describe("link-reference.util", () => {
   it("tolerates the pre-load undefined data", () => {
-    expect(lineOptionsOf(undefined)).toEqual([]);
-    expect(stationOptionsOf(undefined)).toEqual([]);
-    expect(categoryOptionsOf(undefined)).toEqual([]);
+    expect(indexLinesById(undefined).size).toBe(0);
+    expect(filterStationOptionsOf(undefined, "")).toEqual([]);
     expect(vehicleParentCodesOf(undefined).size).toBe(0);
-  });
-
-  it("builds line/station/category options with their labels", () => {
-    expect(lineOptionsOf(data)).toEqual([
-      { id: "l1", label: "KJL — Kelana Jaya Line" },
-      { id: "l2", label: "MRL — Putrajaya Line" },
-    ]);
-    expect(stationOptionsOf(data)).toEqual([
-      { id: "s1", label: "KL Sentral", parentCodes: ["KJL"] },
-      { id: "s2", label: "Subang Jaya", parentCodes: ["MRL"] },
-    ]);
-    expect(categoryOptionsOf(data)).toEqual([{ id: "c1", label: "Disruption" }]);
   });
 
   it("aggregates a vehicle's parent codes across every line", () => {
@@ -70,13 +53,12 @@ describe("link-reference.util", () => {
     expect(codes.get("v1")).toEqual(["KJL", "MRL"]);
   });
 
-  it("narrows vehicle options to the selected lines and de-duplicates", () => {
+  it("lists every vehicle once when no filter line is set", () => {
     const linesById = indexLinesById(data);
     const parentCodes = vehicleParentCodesOf(data);
-    const all = vehicleOptionsOf(data, [], linesById, parentCodes);
-    expect(all).toEqual([{ id: "v1", label: "V-100", parentCodes: ["KJL", "MRL"] }]);
-    const narrowed = vehicleOptionsOf(data, ["l1"], linesById, parentCodes);
-    expect(narrowed).toHaveLength(1);
+    expect(filterVehicleOptionsOf(data, "", linesById, parentCodes)).toEqual([
+      { id: "v1", label: "V-100", parentCodes: ["KJL", "MRL"] },
+    ]);
   });
 
   it("filters vehicles and stations by the filter line", () => {

@@ -1,6 +1,5 @@
 import { DatePipe } from "@angular/common";
 import { Component, computed } from "@angular/core";
-import { graphqlResource } from "../../../../core/graphql/graphql-client";
 import { eventValue } from "../../../../core/util/dom-event.util";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
@@ -18,23 +17,16 @@ import { LinkQueueRowComponent } from "./link-queue-row.component";
 import { LinksFilterBarComponent } from "./links-filter-bar.component";
 import { LinksSelectionToolbarComponent } from "./links-selection-toolbar.component";
 import {
-  categoryOptionsOf,
   filterStationOptionsOf,
   filterVehicleOptionsOf,
   indexLinesById,
-  lineOptionsOf,
-  stationOptionsOf,
-  vehicleOptionsOf,
   vehicleParentCodesOf,
 } from "./link-reference.util";
 import {
   AssetMultiSelectComponent,
   type AssetMultiSelectOption,
 } from "../../../insiden/asset-multi-select/asset-multi-select.component";
-import {
-  INSIDEN_REFERENCE_QUERY,
-  type InsidenReferenceQueryData,
-} from "../../../insiden/data/insiden.queries";
+import { injectInsidenReferenceOptions } from "../../../insiden/data/insiden-reference-options";
 import { isSameMinute } from "../data/same-minute.util";
 import { threadLabel } from "../../../insiden/data/link-thread-selection.util";
 import { injectLinksQueue } from "./links-queue";
@@ -275,6 +267,12 @@ export class SocialMediaLinksComponent {
   private readonly panel = injectLinkEditPanel(this.queue.links, this.actions, () =>
     this.referenceResource.data(),
   );
+  /** The edit form's tag options, built like the public link form's (`injectInsidenReferenceOptions`),
+   *  so a vehicle tagged without its line stays listed and removable. */
+  private readonly reference = injectInsidenReferenceOptions(
+    this.panel.selectedLineIds,
+    this.panel.selectedVehicleIds,
+  );
 
   protected readonly links = this.queue.links;
   protected readonly isLoading = this.queue.isLoading;
@@ -379,9 +377,11 @@ export class SocialMediaLinksComponent {
    *  be re-invented inline in a template binding. */
   protected readonly isSameMinute = isSameMinute;
 
-  protected readonly referenceResource = graphqlResource<InsidenReferenceQueryData>(() => ({
-    query: INSIDEN_REFERENCE_QUERY,
-  }));
+  protected readonly referenceResource = this.reference.resource;
+  protected readonly lineOptions = this.reference.lineOptions;
+  protected readonly vehicleOptions = this.reference.vehicleOptions;
+  protected readonly stationOptions = this.reference.stationOptions;
+  protected readonly categoryOptions = this.reference.categoryOptions;
 
   /** The Category filter's options, from the same reference read as the edit panel's tags (it
    *  already selects every category), not a second categories query. */
@@ -389,27 +389,10 @@ export class SocialMediaLinksComponent {
     () => this.referenceResource.data()?.calendarIncidentCategories ?? [],
   );
 
-  protected readonly lineOptions = computed<AssetMultiSelectOption[]>(() =>
-    lineOptionsOf(this.referenceResource.data()),
-  );
-
   private readonly _linesById = computed(() => indexLinesById(this.referenceResource.data()));
 
   private readonly _vehicleParentCodes = computed(() =>
     vehicleParentCodesOf(this.referenceResource.data()),
-  );
-
-  protected readonly vehicleOptions = computed<AssetMultiSelectOption[]>(() =>
-    vehicleOptionsOf(
-      this.referenceResource.data(),
-      this.selectedLineIds(),
-      this._linesById(),
-      this._vehicleParentCodes(),
-    ),
-  );
-
-  protected readonly stationOptions = computed<AssetMultiSelectOption[]>(() =>
-    stationOptionsOf(this.referenceResource.data()),
   );
 
   protected readonly filterVehicleOptions = computed<AssetMultiSelectOption[]>(() =>
@@ -423,10 +406,6 @@ export class SocialMediaLinksComponent {
 
   protected readonly filterStationOptions = computed<AssetMultiSelectOption[]>(() =>
     filterStationOptionsOf(this.referenceResource.data(), this.filterLineId()),
-  );
-
-  protected readonly categoryOptions = computed<AssetMultiSelectOption[]>(() =>
-    categoryOptionsOf(this.referenceResource.data()),
   );
 
   constructor() {

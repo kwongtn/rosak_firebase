@@ -25,31 +25,6 @@ export function indexCategoriesById(data: ReferenceData): Map<string, ReferenceC
   );
 }
 
-/** Options for the line multi-select: `code — displayName`. */
-export function lineOptionsOf(data: ReferenceData): AssetMultiSelectOption[] {
-  return (data?.lines ?? []).map((line) => ({
-    id: line.id,
-    label: `${line.code} — ${line.displayName}`,
-  }));
-}
-
-/** Station options, carrying each station's parent line codes. */
-export function stationOptionsOf(data: ReferenceData): AssetMultiSelectOption[] {
-  return (data?.stations ?? []).map((station) => ({
-    id: station.id,
-    label: station.displayName,
-    parentCodes: (station.lines ?? []).map((line) => line.code),
-  }));
-}
-
-/** Category options (the calendar-incident categories). */
-export function categoryOptionsOf(data: ReferenceData): AssetMultiSelectOption[] {
-  return (data?.calendarIncidentCategories ?? []).map((category) => ({
-    id: category.id,
-    label: category.name,
-  }));
-}
-
 /** A vehicle's true line memberships, computed over ALL lines (not just a
  *  selected-filtered view) — a vehicle's parent codes shouldn't disappear just
  *  because its line got unchecked. */
@@ -107,21 +82,6 @@ function vehicleOptionsFromLines(
     }
   }
   return options;
-}
-
-/** Vehicle options for the edit form, narrowed to the selected lines (no selection
- *  = every line). */
-export function vehicleOptionsOf(
-  data: ReferenceData,
-  selectedLineIds: readonly string[],
-  linesById: Map<string, ReferenceLine>,
-  parentCodes: Map<string, string[]>,
-): AssetMultiSelectOption[] {
-  const selected =
-    selectedLineIds.length > 0
-      ? selectedLineIds.map((id) => linesById.get(id))
-      : [...linesById.values()];
-  return vehicleOptionsFromLines(selected, parentCodes);
 }
 
 /** Filter controls reuse the same parent-filtering pattern, keyed on the FILTER
