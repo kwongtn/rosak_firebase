@@ -33,7 +33,7 @@ jobs:
 
       - run: npx prettier --check .
 
-      # Skipped until a `lint` script exists in package.json.
+      # Runs the `lint` script (ESLint); only error-level findings fail the job.
       - run: npm run lint --if-present
 
       # Report-only for now: known advisories show up in the log without blocking a PR.
