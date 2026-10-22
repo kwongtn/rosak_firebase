@@ -339,17 +339,9 @@ describe("graphql-client", () => {
     }
 
     it("sends the headers it is given", async () => {
-      const sent = await send({ "firebase-auth-key": "tok-1" });
+      const sent = await send({ "g-recaptcha-response": "captcha-1" });
 
-      expect(sent.headers.get("firebase-auth-key")).toBe("tok-1");
-    });
-
-    it("keeps a request that carries the viewer's token out of the SSR transfer cache", async () => {
-      // The cache keys on method, URL and body, not headers, and answers from the server's render
-      // until the app first settles: the server's answer to the same query is the anonymous one.
-      const sent = await send({ "firebase-auth-key": "tok-1" });
-
-      expect(sent.transferCache).toBe(false);
+      expect(sent.headers.get("g-recaptcha-response")).toBe("captcha-1");
     });
 
     it("toasts a GraphQL error itself unless the caller asks it to stay quiet", async () => {
@@ -377,7 +369,8 @@ describe("graphql-client", () => {
       expect((await send()).timeout).toBeUndefined();
     });
 
-    it("leaves every other request to the transfer cache, so a server-rendered read is not asked twice", async () => {
+    // The signed request's opt-out is the auth interceptor's (core/http/auth.interceptor.spec.ts).
+    it("leaves its requests to the transfer cache, so a server-rendered read is not asked twice", async () => {
       expect((await send()).transferCache).toBeUndefined();
       expect((await send({})).transferCache).toBeUndefined();
       expect((await send({ "x-other": "1" })).transferCache).toBeUndefined();

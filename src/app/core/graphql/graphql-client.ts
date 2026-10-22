@@ -1,4 +1,4 @@
-import { HttpClient, type HttpResourceOptions } from "@angular/common/http";
+import { HttpClient, HttpContext, type HttpResourceOptions } from "@angular/common/http";
 import { isPlatformBrowser } from "@angular/common";
 import {
   computed,
@@ -14,7 +14,9 @@ import { httpResource } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
 import * as Sentry from "@sentry/angular";
 
+import { AuthService } from "../auth/auth.service";
 import { injectIsBrowser } from "../composables/is-browser";
+import { ANONYMOUS } from "../http/auth.interceptor";
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
 import { deepEqual } from "../util/deep-equal.util";
@@ -81,6 +83,11 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  * `.omo/plans/spotting-route-persistence.md`); only genuinely different payloads replace `data()`.
  * Set `retainDataIfEqual` to `false` when a caller needs every response to become a new reference.
  *
+ * A read is anonymous by default ({@link ANONYMOUS}): a public answer, the same for everyone, that
+ * the SSR transfer cache can hand over. With `authenticated: true` the auth interceptor adds the
+ * signed-in viewer's token, and the first request waits for `AuthService.whenReady`, so a session
+ * that Firebase is still restoring is not read as signed out.
+ *
  * Only for queries (idempotent reads). Mutations should call
  * `inject(GraphQLClient).request(query, variables, headers)` directly from an event handler —
  * httpResource re-issues its request whenever a dependency signal changes, which is the wrong
@@ -88,9 +95,14 @@ const RETRY_MAX_DELAY_MS = 3 * 60 * 1000;
  */
 export function graphqlResource<TData, TVars = Record<string, unknown>>(
   requestFn: () => { query: string; variables?: TVars } | undefined,
-  options?: { retainDataIfEqual?: boolean },
+  options?: { retainDataIfEqual?: boolean; authenticated?: boolean },
 ) {
   const retainIfEqual = options?.retainDataIfEqual ?? true;
+  const authenticated = options?.authenticated ?? false;
+  const authReady = signal(!authenticated);
+  if (authenticated) {
+    void inject(AuthService).whenReady.then(() => authReady.set(true));
+  }
   const resourceOptions: HttpResourceOptions<GraphQLResponse<TData>, unknown> | undefined =
     retainIfEqual
       ? {
@@ -99,7 +111,7 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
       : undefined;
 
   const raw = httpResource<GraphQLResponse<TData>>(() => {
-    const req = requestFn();
+    const req = authReady() ? requestFn() : undefined;
     if (!req) {
       return undefined;
     }
@@ -107,6 +119,7 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
       url: environment.backendGraphqlUrl,
       method: "POST",
       body: { query: req.query, variables: req.variables ?? {} } satisfies GraphQLRequestBody,
+      context: authenticated ? undefined : new HttpContext().set(ANONYMOUS, true),
     };
   }, resourceOptions);
 
@@ -256,8 +269,9 @@ export interface GraphQLRequestOptions {
  * rather than bound to the signal graph. Throws GraphQLRequestError if the response
  * carries a top-level `errors` array, so callers can rely on try/catch.
  *
- * A request that carries the viewer's `firebase-auth-key` never goes through the SSR transfer cache:
- * the cache holds the server's anonymous answer to the same query and would hand it to the viewer.
+ * The auth interceptor (`core/http/auth.interceptor.ts`) adds a signed-in viewer's
+ * `firebase-auth-key` and keeps such a request out of the SSR transfer cache; a signed-out
+ * viewer's request goes out anonymous. A failed token refresh rejects with Firebase's error.
  */
 @Injectable({ providedIn: "root" })
 export class GraphQLClient {
@@ -276,11 +290,6 @@ export class GraphQLClient {
       this.http.post<GraphQLResponse<TData>>(environment.backendGraphqlUrl, body, {
         headers: extraHeaders,
         timeout: options?.timeout,
-        // The viewer's token makes this a different question from the one the server rendered
-        // (whose answer is "anonymous"): `isMine`, `userVote`. The SSR transfer cache keys on
-        // method, URL and body, not headers, and answers from the server's copy until the app first
-        // settles, so a token-bearing request has to skip it or it can come back anonymous.
-        transferCache: extraHeaders?.["firebase-auth-key"] ? false : undefined,
       }),
     );
     // Check errors FIRST before returning data. If GraphQL returned any errors,

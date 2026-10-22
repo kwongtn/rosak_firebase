@@ -13,6 +13,7 @@ import {
 } from "firebase/auth";
 
 import { injectIsBrowser } from "../composables/is-browser";
+import { AUTH_SESSION } from "../http/auth.interceptor";
 import { readPushState, writePushState } from "../push/push-storage";
 import type { PushService } from "../push/push.service";
 import { claimSessionDrafts, readStorageItem } from "../util/web-storage.util";
@@ -68,6 +69,8 @@ export class AuthService {
   private resolveReady!: () => void;
 
   constructor() {
+    // The eager auth interceptor cannot import this lazy service, so it reads the session from here.
+    inject(AUTH_SESSION).set(this);
     this.whenReady = new Promise((resolve) => (this.resolveReady = resolve));
     if (!this.isBrowser) {
       this.resolveReady();

@@ -1,7 +1,8 @@
-import { httpResource } from "@angular/common/http";
+import { HttpContext, httpResource } from "@angular/common/http";
 import { DecimalPipe } from "@angular/common";
 import { Component, computed, signal, input } from "@angular/core";
 import { environment } from "../../../../../environments/environment";
+import { ANONYMOUS } from "../../../../core/http/auth.interceptor";
 import { revalidateOnReturn } from "../../../../core/routing/revalidate-on-return";
 import { deepEqual } from "../../../../core/util/deep-equal.util";
 import { isSpottingDetailsRoute } from "../../data/spotting-route-patterns";
@@ -294,7 +295,11 @@ export class VehicleStatusTrendComponent {
   protected readonly resource = httpResource<StatusTrendRow[]>(
     () => {
       const { start, end } = this._range();
-      return `${environment.backendUrl}operation/line_vehicles_status_trend_count/${this.lineId()}/${this.selectedSource()}/${start}/${end}/`;
+      return {
+        url: `${environment.backendUrl}operation/line_vehicles_status_trend_count/${this.lineId()}/${this.selectedSource()}/${start}/${end}/`,
+        // Public counts: no token, so the SSR transfer cache keeps answering it.
+        context: new HttpContext().set(ANONYMOUS, true),
+      };
     },
     {
       equal: (a, b) => deepEqual(a, b),

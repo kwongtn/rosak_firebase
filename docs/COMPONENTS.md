@@ -81,12 +81,24 @@ other components still use raw palette utilities.
 - `core/graphql/`: `graphqlResource()` reads (`data()` and `errors()` never throw; `data()` keeps the
   last good payload while the SAME request fails or retries, and a changed request clears it) and
   `GraphQLClient.request` writes. `toastSubmitFailure(toast)` is what a form's submit `catch` calls
-  for any error the client did not already toast, before rethrowing to Sentry. A request that carries
-  `firebase-auth-key` opts out of the SSR transfer cache (`transferCache: false`): the cache keys on
-  method, URL and body, not headers, so it would answer a signed-in viewer with the server's
-  anonymous render of the same query. `request()`'s fourth argument takes `timeout` (ms, handed to
+  for any error the client did not already toast, before rethrowing to Sentry. A `graphqlResource`
+  read is anonymous (`ANONYMOUS`) unless it passes `{ authenticated: true }`, which waits for
+  `AuthService.whenReady` before its first request and is then signed by the auth interceptor
+  (`core/http/` below). `GraphQLClient.request` is always signed for a signed-in viewer; call sites
+  pass no token. `request()`'s fourth argument takes `timeout` (ms, handed to
   `HttpClient`, which then rejects with a status-0 `HttpErrorResponse`) and `quiet` (no "GraphQL
   Error" toast from the client, for a background caller that toasts itself; Sentry still gets it).
+- `core/http/auth.interceptor.ts` (eager, registered in `app.config.ts`): `authInterceptor` adds
+  the signed-in viewer's Firebase ID token as `firebase-auth-key` to every request whose URL starts
+  with `backendGraphqlUrl` or `backendUrl`, and sets `transferCache: false` on it (the SSR transfer
+  cache keys on method, URL and body, not headers, so it would answer a signed-in viewer with the
+  server's anonymous render). It reads `AuthService` through the `AUTH_SESSION` token, which the
+  service fills when it starts, because importing the service would put Firebase Auth in `main`.
+  A signed-out viewer's request goes out at once and unsigned; a failed token refresh fails the
+  request with Firebase's error before anything is sent. A public read opts out with
+  `new HttpContext().set(ANONYMOUS, true)` (the footer's backend version, the vehicle status trend).
+  The AI service's `Authorization: Bearer` call to its own API is not a backend request and keeps
+  its own token.
 - `core/auth/`: `AuthService` (lazy, with Firebase Auth). `whenReady` resolves once Firebase has
   restored or ruled out a session, also when the admin claim cannot be read (offline with an
   expired token: `isAdmin` stays `false` and the error goes to the `ErrorHandler`). Every auth
@@ -359,7 +371,7 @@ measured" quotes the file sizes the build prints.
   `App` injects. It touches the SDK only after the first render, but imports it statically.
 - About 21 kB of app code: the services the app initializers start (new-version check, scroll
   memory), the analytics service, the route strategies, the toaster, the nav progress bar, theme,
-  network state and the environment.
+  network state, the auth interceptor and the environment.
 
 Everything else is lazy, the front page included (`features/home/home.routes.ts`, see
 [home](components/home.md) → Route). So are the shell (the pages import it), `AuthService` with

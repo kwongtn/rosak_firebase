@@ -14,13 +14,14 @@ import {
   withInMemoryScrolling,
   withPreloading,
 } from "@angular/router";
-import { HttpErrorResponse, provideHttpClient } from "@angular/common/http";
+import { HttpErrorResponse, provideHttpClient, withInterceptors } from "@angular/common/http";
 import { RECAPTCHA_V3_SITE_KEY, ReCaptchaV3Service, RecaptchaLoaderService } from "ng-recaptcha-2";
 import { provideMarkdown } from "ngx-markdown";
 import { provideServiceWorker } from "@angular/service-worker";
 import * as Sentry from "@sentry/angular";
 
 import { routes } from "./app.routes";
+import { authInterceptor } from "./core/http/auth.interceptor";
 import { provideClientHydration, withHttpTransferCacheOptions } from "@angular/platform-browser";
 import { environment } from "../environments/environment";
 import { NewVersionService } from "./core/version/new-version.service";
@@ -155,8 +156,9 @@ export const appConfig: ApplicationConfig = {
     // GraphQL-over-HTTP sends reads as POST too — without includePostRequests, Angular's
     // transfer cache (GET-only by default) would refetch every query again after hydration.
     provideClientHydration(withHttpTransferCacheOptions({ includePostRequests: true })),
-    // Angular 22's HttpClient uses the Fetch API by default — no withFetch() needed.
-    provideHttpClient(),
+    // Angular 22's HttpClient uses the Fetch API by default — no withFetch() needed. The interceptor
+    // signs backend requests with the viewer's token (see core/http/auth.interceptor.ts).
+    provideHttpClient(withInterceptors([authInterceptor])),
     // Only console's markAsRead mutation needs this today — the backend still actively enforces
     // IsRecaptchaChallengePassed there (unlike addEvent, where it's been disabled server-side).
     { provide: RECAPTCHA_V3_SITE_KEY, useValue: environment.captcha.siteKey },

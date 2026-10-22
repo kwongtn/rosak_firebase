@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ANONYMOUS } from "../../core/http/auth.interceptor";
 import { NewVersionService } from "../../core/version/new-version.service";
 import { AppFooterComponent } from "./app-footer.component";
 
@@ -60,6 +61,16 @@ describe("AppFooterComponent", () => {
     const gdpr = anchorByText(root, "GDPR");
     expect(gdpr).toBeDefined();
     expect(methodology?.closest("p")).toBe(gdpr?.closest("p"));
+  });
+
+  it("asks for the backend version without the viewer's token, so SSR can hand it over", () => {
+    const fixture = TestBed.createComponent(AppFooterComponent);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    const call = httpMock.expectOne((request) => request.url.endsWith("version/"));
+    expect(call.request.context.get(ANONYMOUS)).toBe(true);
+    call.flush({ hash: "unknown", datetime: null });
   });
 
   it("keeps the existing GDPR link intact", () => {

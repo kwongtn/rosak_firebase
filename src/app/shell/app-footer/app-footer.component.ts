@@ -1,9 +1,10 @@
 import { DatePipe } from "@angular/common";
-import { httpResource } from "@angular/common/http";
+import { HttpContext, httpResource } from "@angular/common/http";
 import { Component, computed, inject } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { buildInfo } from "../../../build-info";
 import { environment } from "../../../environments/environment";
+import { ANONYMOUS } from "../../core/http/auth.interceptor";
 import { NewVersionService } from "../../core/version/new-version.service";
 import {
   BACKEND_REPO_URL,
@@ -114,9 +115,11 @@ interface BackendVersion {
 })
 export class AppFooterComponent {
   protected readonly buildInfo = buildInfo;
-  protected readonly backendVersion = httpResource<BackendVersion>(
-    () => `${environment.backendUrl}version/`,
-  );
+  // Public: no token, so the server-rendered answer is handed over (SSR transfer cache).
+  protected readonly backendVersion = httpResource<BackendVersion>(() => ({
+    url: `${environment.backendUrl}version/`,
+    context: new HttpContext().set(ANONYMOUS, true),
+  }));
 
   private readonly newVersion = inject(NewVersionService);
   protected readonly hasNewVersion = this.newVersion.hasNewVersion;
