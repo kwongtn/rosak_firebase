@@ -690,6 +690,31 @@ describe("PendingIncidentsComponent", () => {
     ]);
   });
 
+  it("savePanelEdit refuses a chronology row that has a URL but no description", async () => {
+    await initialLoadsSettled(asTestable(fixture));
+    requestMock.mockClear();
+
+    const component = asTestable(fixture);
+    component.openDetail(makeRow());
+    component.chronologies.set([
+      {
+        key: 1,
+        indicator: "RED",
+        datetime: "",
+        sourceUrl: "https://x.com/a",
+        content: " ",
+        collapsed: false,
+      },
+    ]);
+    await component.savePanelEdit();
+
+    expect(callsFor("updateCalendarIncident")).toHaveLength(0);
+    expect(TestBed.inject(ToastService).error).toHaveBeenCalledWith(
+      "Check the chronology",
+      "Entry 1 has no description. Fill it in or remove it.",
+    );
+  });
+
   it("savePanelEdit refuses to fire while the form is invalid", async () => {
     await initialLoadsSettled(asTestable(fixture));
     requestMock.mockClear();

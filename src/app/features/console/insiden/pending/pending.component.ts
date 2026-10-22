@@ -27,6 +27,7 @@ import {
 } from "../../../insiden/data/incident-ai.service";
 import { IncidentCardComponent } from "../../../insiden/incident-card/incident-card.component";
 import {
+  chronologyErrors,
   chronologyInputs,
   emptyChronology,
   moveChronology,
@@ -654,12 +655,20 @@ export class PendingIncidentsComponent {
   /** Full edit — same field set as "Report an Incident". The backend replaces
    *  lines/vehicles/stations/categories and chronologies from the input
    *  verbatim, so the payload carries the complete form state (not just the
-   *  edited scalars). Validation runs through `submit(...)` — an invalid form
-   *  is rejected before the mutation fires and the inline errors appear.
+   *  edited scalars). A chronology row with no description is refused first, as
+   *  on the public form (`chronologyErrors`). Validation runs through `submit(...)` —
+   *  an invalid form is rejected before the mutation fires and the inline errors appear.
    *  On success the queue row and the detail card are patched locally. */
   protected async savePanelEdit(): Promise<void> {
     const row = this.selectedRow();
     if (!row) {
+      return;
+    }
+    // The public form's rule: a row with anything in it needs a description.
+    const [firstRowError] = chronologyErrors(this.chronologies()).values();
+    if (firstRowError) {
+      this.incidentForm().markAsTouched();
+      this.toast.error("Check the chronology", firstRowError);
       return;
     }
     this.isMutating.set(true);
