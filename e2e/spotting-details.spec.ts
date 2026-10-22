@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
-import { configureMock, expect, resetMock, routeGraphQLToMock, test } from "./helpers/mock-graphql";
+import { configureMock, expect, routeGraphQLToMock, test } from "./helpers/mock-graphql";
 import { dayKey, LINE, vehicleRange, vehicleType } from "./helpers/spotting-fixtures";
 
 /**
@@ -16,9 +16,9 @@ import { dayKey, LINE, vehicleRange, vehicleType } from "./helpers/spotting-fixt
  * the mobile rows.
  *
  * Responses come from the local mock GraphQL server (e2e/mock-graphql.server.mjs) via
- * `routeGraphQLToMock`; Firebase Auth is bypassed with the AuthService E2E override
- * (helpers/auth.ts). The grid's visible window is the current UTC month plus the two before it,
- * so the stubbed spotting dates are computed from `new Date()` to always land inside it.
+ * `routeGraphQLToMock`; `loginAs` (helpers/auth.ts) seeds a persisted Firebase session. The grid's
+ * visible window is the current UTC month plus the two before it, so the stubbed spotting dates are
+ * computed from `new Date()` to always land inside it.
  */
 
 const STUBS: Record<string, unknown> = {
@@ -59,7 +59,6 @@ const MOBILE_TEST_IDS = [
 ] as const;
 
 test.beforeEach(async ({ page }) => {
-  await resetMock();
   await routeGraphQLToMock(page);
   await loginAs(page);
   await configureMock(STUBS);

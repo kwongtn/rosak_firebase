@@ -17,12 +17,20 @@ import { expect, test as base, type Page } from "@playwright/test";
  */
 export const MOCK_GRAPHQL_URL = `http://localhost:${process.env["MOCK_GRAPHQL_PORT"] ?? 4301}`;
 
-/** Re-points every GraphQL request the page makes at the mock server. Call before `goto`. */
-export async function routeGraphQLToMock(page: Page): Promise<void> {
+/**
+ * Re-points every GraphQL request the page makes at the mock server. Call before `goto`.
+ * `hold`, when given, runs for each request with its body (the query text) after the mock has
+ * answered and before the page gets the response: await a promise in it to keep a request open.
+ */
+export async function routeGraphQLToMock(
+  page: Page,
+  hold?: (body: string) => Promise<void>,
+): Promise<void> {
   await page.route("**/graphql/", async (route) => {
     try {
       // maxRetries: the mock may close an idle keep-alive socket just as it is reused (ECONNRESET).
       const response = await route.fetch({ url: `${MOCK_GRAPHQL_URL}/graphql/`, maxRetries: 2 });
+      await hold?.(route.request().postData() ?? "");
       await route.fulfill({ response });
     } catch (err) {
       // A request still in flight when the test ends fails here because its page is gone.

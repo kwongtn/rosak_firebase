@@ -5,7 +5,6 @@ import {
   expect,
   graphqlError,
   recordedCalls,
-  resetMock,
   routeGraphQLToMock,
   test,
 } from "./helpers/mock-graphql";
@@ -14,8 +13,8 @@ import {
  * Regression coverage for the community front page (the `""` route): the feed and its
  * submit box, the per-line pulse list, and the line-status sheet. Responses come from
  * the mock GraphQL server — `routeGraphQLToMock` bridges the build's dev-backend URL to
- * it (see e2e/helpers/mock-graphql.ts). Authenticated tests use the AuthService E2E
- * override (helpers/auth.ts), never a real Firebase session.
+ * it (see e2e/helpers/mock-graphql.ts). Authenticated tests call `loginAs` (helpers/auth.ts),
+ * which seeds a persisted Firebase session so the real token path runs.
  *
  * Round 3 moved a lot of copy behind hover/tap popovers (the feed's exact timestamp and
  * submitter, the line card's consolidated message) and behind the line card's expand
@@ -240,7 +239,6 @@ const configureHome = (stubs: Record<string, unknown>): Promise<void> =>
   configureMock({ ...BACKGROUND_READS, ...stubs });
 
 test.beforeEach(async ({ page }) => {
-  await resetMock();
   await routeGraphQLToMock(page);
 });
 

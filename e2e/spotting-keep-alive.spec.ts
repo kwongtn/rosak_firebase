@@ -4,9 +4,8 @@ import { loginAs } from "./helpers/auth";
 import {
   configureMock,
   expect,
-  MOCK_GRAPHQL_URL,
   recordedCalls,
-  resetMock,
+  routeGraphQLToMock,
   test,
 } from "./helpers/mock-graphql";
 import { dayKey, LINE, vehicle, vehicleRange, vehicleType } from "./helpers/spotting-fixtures";
@@ -14,10 +13,9 @@ import { dayKey, LINE, vehicle, vehicleRange, vehicleType } from "./helpers/spot
 /**
  * Regression coverage for spotting's keep-alive route persistence.
  *
- * The development bundle points at the backend URL in the environment, so this spec installs
- * its own GraphQL route instead of using the shared pass-through helper. That lets the return
- * revalidation response be held open, behind a gate the test releases, to prove that retained data
- * stays mounted while a background request is in flight.
+ * The first test passes `routeGraphQLToMock` a `hold` hook that keeps the return revalidation
+ * response open, behind a gate the test releases, to prove that retained data stays mounted while
+ * a background request is in flight.
  */
 
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 };
@@ -58,57 +56,6 @@ const STUBS: Record<string, unknown> = {
   // focuses on the details page's retained DOM and scroll position.
   VehicleEvents: { events: [] },
 };
-
-interface MockRouteState {
-  vehicleTypesCalls: number;
-  delayedResponseStarted: boolean;
-  delayedResponseResolved: boolean;
-  /** Lets every held response through; the test calls it once it has asserted the in-flight state. */
-  release: () => void;
-}
-
-/**
- * Routes GraphQL traffic to the mock and optionally holds VehicleTypesByLine responses from a
- * call number onward, until the test calls `release()`. The state flags let the test observe that
- * the held request is genuinely open before asserting the no-skeleton state.
- */
-async function routeGraphQLToMockWithDelay(
-  page: Page,
-  delayVehicleTypesFrom?: number,
-): Promise<MockRouteState> {
-  let release!: () => void;
-  const gate = new Promise<void>((resolve) => (release = resolve));
-  const state: MockRouteState = {
-    vehicleTypesCalls: 0,
-    delayedResponseStarted: false,
-    delayedResponseResolved: false,
-    release,
-  };
-  // A test that fails while a response is held must not leave its handler waiting forever.
-  page.once("close", release);
-
-  await page.route("**/graphql/", async (route) => {
-    const body = route.request().postDataJSON() as { query?: string } | undefined;
-    const isVehicleTypes = /VehicleTypesByLine/.test(body?.query ?? "");
-    const response = await route.fetch({ url: `${MOCK_GRAPHQL_URL}/graphql/`, maxRetries: 2 });
-    const shouldDelay =
-      isVehicleTypes &&
-      delayVehicleTypesFrom !== undefined &&
-      ++state.vehicleTypesCalls >= delayVehicleTypesFrom;
-
-    if (shouldDelay) {
-      state.delayedResponseStarted = true;
-      await gate;
-    }
-
-    await route.fulfill({ response });
-    if (shouldDelay) {
-      state.delayedResponseResolved = true;
-    }
-  });
-
-  return state;
-}
 
 async function markVisibleElement(page: Page, selector: string, marker: string): Promise<void> {
   const marked = await page.evaluate(
@@ -169,7 +116,6 @@ async function waitForVehicleTypesCalls(minimum: number): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await resetMock();
   await loginAs(page);
   await configureMock(STUBS);
   await page.setViewportSize(DESKTOP_VIEWPORT);
@@ -179,7 +125,19 @@ test.describe("spotting keep-alive navigation", () => {
   test("returns to the overview through the in-app back link without replacing its DOM", async ({
     page,
   }) => {
-    const routeState = await routeGraphQLToMockWithDelay(page, 3);
+    // Hold the return revalidation (the third VehicleTypesByLine call) until the test lets it go.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    // A test that fails while a response is held must not leave its handler waiting forever.
+    page.once("close", release);
+    let vehicleTypesCalls = 0;
+    let holdStarted = false;
+    await routeGraphQLToMock(page, async (body) => {
+      if (/VehicleTypesByLine/.test(body) && ++vehicleTypesCalls >= 3) {
+        holdStarted = true;
+        await gate;
+      }
+    });
 
     await page.goto("/spotting/1");
     const overviewLink = page.locator('a[href="/spotting/1/vehicle/1"]:visible').first();
@@ -212,13 +170,15 @@ test.describe("spotting keep-alive navigation", () => {
           .some((call) => call.operationName === "VehicleTypesByLine");
       })
       .toBe(true);
-    await expect.poll(() => routeState.delayedResponseStarted).toBe(true);
+    await expect.poll(() => holdStarted).toBe(true);
     await expect.poll(async () => page.locator("[hlmSkeleton]").count()).toBe(0);
     await expectWindowScrollNear(page, 600);
-    expect(routeState.delayedResponseResolved).toBe(false);
 
-    routeState.release();
-    await expect.poll(() => routeState.delayedResponseResolved).toBe(true);
+    const delivered = page.waitForResponse((response) =>
+      (response.request().postData() ?? "").includes("VehicleTypesByLine"),
+    );
+    release();
+    await delivered;
     await expect(retainedOverview).toBeAttached();
     await expectWindowScrollNear(page, 600);
   });
@@ -226,7 +186,7 @@ test.describe("spotting keep-alive navigation", () => {
   test("preserves both overview and details DOM and scroll through browser back and forward", async ({
     page,
   }) => {
-    await routeGraphQLToMockWithDelay(page);
+    await routeGraphQLToMock(page);
 
     await page.goto("/spotting/1");
     const overviewLink = page.locator('a[href="/spotting/1/vehicle/1"]:visible').first();
@@ -259,7 +219,7 @@ test.describe("spotting keep-alive navigation", () => {
   test("keeps the details grid and its window scroll when browser back returns from a vehicle", async ({
     page,
   }) => {
-    await routeGraphQLToMockWithDelay(page);
+    await routeGraphQLToMock(page);
 
     await page.goto("/spotting/1/details");
     const detailsGrid = page.locator('[data-testid="spotting-grid"]:visible').first();

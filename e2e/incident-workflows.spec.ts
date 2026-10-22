@@ -3,7 +3,6 @@ import {
   configureMock,
   expect,
   recordedCalls,
-  resetMock,
   routeGraphQLToMock,
   test,
 } from "./helpers/mock-graphql";
@@ -52,7 +51,6 @@ const INCIDENT = {
 const REFERENCE_DATA = { lines: [], stations: [], calendarIncidentCategories: [] };
 
 test.beforeEach(async ({ page }) => {
-  await resetMock();
   await routeGraphQLToMock(page);
 });
 
