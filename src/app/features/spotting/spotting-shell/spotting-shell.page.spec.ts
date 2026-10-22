@@ -145,7 +145,7 @@ describe("SpottingShellPage report sheet", () => {
     expect(clear).toHaveBeenCalledTimes(1);
   });
 
-  it("holds Submit back while a picked photo is still being compressed", async () => {
+  it("holds Submit back while a picked photo compresses, and frees its preview on close", async () => {
     // Spied and restored, never deleted: later spec files in this worker share this `URL`.
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
     const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
@@ -175,6 +175,13 @@ describe("SpottingShellPage report sheet", () => {
     await fixture.whenStable();
 
     expect(footerButton(fixture, "Submit").disabled).toBe(false);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    // Closing the sheet resets the form, which empties the picker: its preview URL is freed.
+    sheet.setOpen(false);
+    await fixture.whenStable();
+
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
   it("hands the form a line chosen before the form existed, once, and does not keep it", async () => {
