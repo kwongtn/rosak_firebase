@@ -78,7 +78,6 @@ function submitResponse(
 
 describe("LinkSubmitBoxComponent", () => {
   let requestMock: ReturnType<typeof vi.fn>;
-  let idTokenMock: ReturnType<typeof vi.fn>;
   let toastMocks: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let storeMock: {
     setUserVote: ReturnType<typeof vi.fn>;
@@ -91,7 +90,6 @@ describe("LinkSubmitBoxComponent", () => {
 
   beforeEach(async () => {
     requestMock = vi.fn();
-    idTokenMock = vi.fn(async () => "token" as string | null);
     toastMocks = { success: vi.fn(), error: vi.fn() };
     storeMock = { setUserVote: vi.fn(), reloadAll: vi.fn() };
     openSheetMock = vi.fn();
@@ -104,7 +102,7 @@ describe("LinkSubmitBoxComponent", () => {
         provideZonelessChangeDetection(),
         {
           provide: AuthService,
-          useValue: { isLoggedIn, login: loginMock, idToken: idTokenMock },
+          useValue: { isLoggedIn, login: loginMock },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
@@ -148,7 +146,7 @@ describe("LinkSubmitBoxComponent", () => {
     expect(fixture.nativeElement.querySelector('[data-testid="advanced-input"]')).not.toBeNull();
   });
 
-  it("submits only the url with the auth header, then resets and emits", async () => {
+  it("submits only the url, then resets and emits", async () => {
     requestMock.mockResolvedValue(submitResponse());
     const component = asTestable(fixture);
     component.model.set({ url: "https://example.com/story" });
@@ -161,22 +159,11 @@ describe("LinkSubmitBoxComponent", () => {
     const [mutation, vars, headers] = requestMock.mock.calls[0];
     expect(mutation).toBe(SUBMIT_FEED_LINK_MUTATION);
     expect(vars.input).toEqual({ url: "https://example.com/story" });
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // No headers: the auth interceptor signs it (core/http/auth.interceptor.spec.ts).
+    expect(headers).toBeUndefined();
     expect(toastMocks.success).toHaveBeenCalledTimes(1);
     expect(submittedCount).toBe(1);
     expect(component.model()).toEqual({ url: "" });
-  });
-
-  it("omits the auth header when there is no token", async () => {
-    idTokenMock.mockResolvedValue(null);
-    requestMock.mockResolvedValue(submitResponse());
-    const component = asTestable(fixture);
-    component.model.set({ url: "https://example.com/story" });
-
-    await component.submit();
-
-    const [, , headers] = requestMock.mock.calls[0];
-    expect(headers).toEqual({});
   });
 
   it("submits when Enter is pressed in the url field", async () => {

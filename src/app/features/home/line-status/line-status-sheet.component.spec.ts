@@ -119,7 +119,6 @@ describe("LineStatusSheetComponent", () => {
           useValue: {
             isLoggedIn,
             login,
-            idToken: async () => "token",
             user: signal({ uid: "u1" }),
             whenReady: Promise.resolve(),
           },
@@ -264,7 +263,8 @@ describe("LineStatusSheetComponent", () => {
     expect(vars.input.lineId).toBe("line-1");
     expect(vars.input.status).toBe("CROWDED");
     expect(vars.input.stationIds).toEqual(["s1"]);
-    expect(headers).toEqual({ "firebase-auth-key": "token" });
+    // No headers: the auth interceptor signs it (core/http/auth.interceptor.spec.ts).
+    expect(headers).toBeUndefined();
   });
 
   it("closes the sheet and emits submitted on success", async () => {

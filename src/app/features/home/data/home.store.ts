@@ -107,10 +107,10 @@ const NO_INCIDENTS: readonly HomeIncidentItem[] = Object.freeze([]);
  * widgets, cursor pagination for the feed, a shared polling beat, a per-user vote overlay, and the
  * feed's line filter.
  *
- * The overlay exists because `graphqlResource()` sends no auth token, so `userVote` from the
- * feed is always 0. When logged in, two authenticated `GraphQLClient.request` reads — one per feed
- * resource, with the same variables each of those resources sends EXCEPT the feed's `lineId`
- * filter, plus the caller's idToken as a header — record every non-zero vote; `userVoteFor()`
+ * The overlay exists because the feed's `graphqlResource()` reads are anonymous, so `userVote` from
+ * the feed is always 0. When logged in, two `GraphQLClient.request` reads, which the auth interceptor
+ * signs — one per feed resource, with the same variables each of those resources sends EXCEPT the
+ * feed's `lineId` filter — record every non-zero vote; `userVoteFor()`
  * prefers that overlay over the anonymous feed value, and `userVotes` exposes the whole map for
  * hosts that render one conversation (root plus its whole tree) per row. The read's variables and
  * its window are load-bearing, not a convenience: see the invariant on `loadVoteOverlay()`.
@@ -1259,11 +1259,7 @@ export class HomeStore {
     if (!this.auth.isLoggedIn()) {
       return;
     }
-    const token = await this.auth.idToken();
-    if (!token) {
-      return;
-    }
-    const headers = { "firebase-auth-key": token };
+    // The auth interceptor signs both reads; that token is the only thing they add to the render's.
     // allSettled, not all: if one read fails, the other's votes must still land in the overlay.
     // A per-request failure is already surfaced by `GraphQLClient` (toast + Sentry), so there is
     // nothing to rethrow — and swallowing it keeps the constructor's fire-and-forget
@@ -1274,8 +1270,8 @@ export class HomeStore {
     // are. Do not "fix" it by sending `todayVars()` instead: a filtered overlay is a NARROWER read
     // than the render, which is the direction that loses votes (see the invariant above).
     const results = await Promise.allSettled([
-      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, TODAY_FEED_VARS, headers),
-      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, LAST_WEEK_FEED_VARS, headers),
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, TODAY_FEED_VARS),
+      this.graphql.request<FeedQueryData, FeedQueryVars>(FEED_QUERY, LAST_WEEK_FEED_VARS),
     ]);
     const overlay: Record<string, number> = {};
     for (const result of results) {

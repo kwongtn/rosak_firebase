@@ -580,7 +580,7 @@ export class LineStatusSheetComponent {
 
     this.isSubmitting.set(true);
     try {
-      const ok = await submitLineStatusReport(this.graphql, this.auth, input);
+      const ok = await submitLineStatusReport(this.graphql, input);
       if (!ok) {
         // Business-level rejection: GraphQL returned no top-level errors, but nothing was saved.
         this.submitError.set("Couldn't submit your report. Please try again.");

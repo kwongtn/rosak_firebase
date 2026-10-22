@@ -6,7 +6,6 @@ import {
   untracked,
 } from "@angular/core";
 
-import { AuthService } from "../../../core/auth/auth.service";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { OnlineService } from "../../../core/network/online.service";
@@ -40,8 +39,7 @@ export function provideReportOutboxFlush(): EnvironmentProviders {
     const online = inject(OnlineService);
     const store = inject(HomeStore);
     const graphql = inject(GraphQLClient);
-    const auth = inject(AuthService);
-    const send: ReportOutboxSender = (report) => sendQueuedLineStatusReport(graphql, auth, report);
+    const send: ReportOutboxSender = (report) => sendQueuedLineStatusReport(graphql, report);
 
     effect(() => {
       store.linesRefreshTick();

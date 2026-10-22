@@ -2,7 +2,6 @@ import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { OnlineService } from "../../../core/network/online.service";
 import {
@@ -31,7 +30,6 @@ describe("provideReportOutboxFlush", () => {
         { provide: ReportOutboxService, useValue: { flush } },
         { provide: HomeStore, useValue: store },
         { provide: GraphQLClient, useValue: { request } },
-        { provide: AuthService, useValue: { idToken: async () => "fresh-token" } },
       ],
     });
   });
@@ -115,7 +113,7 @@ describe("provideReportOutboxFlush", () => {
           notes: "Held at KL Sentral",
         },
       },
-      { "firebase-auth-key": "fresh-token" },
+      undefined,
       { timeout: LINE_STATUS_SUBMIT_TIMEOUT_MS, quiet: true },
     );
   });

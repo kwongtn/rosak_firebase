@@ -196,14 +196,12 @@ export class LinkSubmitBoxComponent {
     this.isSubmitting.set(true);
     try {
       const ok = await submit(this.linkForm, async () => {
-        const idToken = await this.auth.idToken();
         const vars: SubmitFeedLinkVars = {
           input: { url: normalizeFeedUrl(this.model().url) },
         };
         const data = await this.graphql.request<SubmitFeedLinkData, SubmitFeedLinkVars>(
           SUBMIT_FEED_LINK_MUTATION,
           vars,
-          idToken ? { "firebase-auth-key": idToken } : {},
         );
         this._showSuccess(data.submitFeedLink);
         return [];

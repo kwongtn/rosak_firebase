@@ -159,8 +159,8 @@
     backend's default start hour);
     `SUBMIT_LINE_STATUS_REPORT_MUTATION`
     (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
-    `submitLineStatusReport(graphql, auth, input, { quiet })` (`data/submit-line-status-report.ts`),
-    the one path the sheet's Submit and the outbox flush share. It reads the ID token at send time,
+    `submitLineStatusReport(graphql, input, { quiet })` (`data/submit-line-status-report.ts`),
+    the one path the sheet's Submit and the outbox flush share. The auth interceptor reads the ID token at send time,
     and gives the request `LINE_STATUS_SUBMIT_TIMEOUT_MS` (15 s), after which it rejects like a
     dropped connection; the flush's `sendQueuedLineStatusReport` sends `quiet`, so the outbox's own
     toast is the only one. The mutation checks `IsLoggedIn` only (no reCAPTCHA).
@@ -240,7 +240,8 @@
     request fails or retries; its `isFetching` (raw in-flight, unlike pristine-only `isLoading`) backs
     `HomeStore.isRefreshing`. `GraphQLClient.request(query, variables?, extraHeaders?)` — mutations and
     the authenticated overlay read.
-  - `AuthService` (`isLoggedIn`, `login()`, `idToken()`, `whenReady`).
+  - `AuthService` (`isLoggedIn`, `login()`, `whenReady`). The auth interceptor (`core/http/`) signs
+    every `GraphQLClient.request`; the feed's `graphqlResource()` reads stay anonymous.
   - `PollingSource` (`core/polling/polling-source.ts`) — the shared beat; pauses while `document.hidden`
     (deadline kept) and on return refreshes at once if the deadline passed, else re-arms for the
     remainder. Timers are browser-only: SSR never arms one, a hidden tab costs nothing. Offline
@@ -419,10 +420,10 @@ The single source of truth for page data.
     renders nothing — the refresh row vanishes for the session (`MISTAKES.md`, fix `7221ff6`).
   - The public beat feeds the control (`intervalMs()` / `secondsRemaining()`) and `refreshNow()`, so
     tick and click cannot diverge.
-- **Authenticated `userVote` overlay.** `graphqlResource()` sends no token, so the feed's `userVote` is
+- **Authenticated `userVote` overlay.** The feed's `graphqlResource()` reads are anonymous, so its `userVote` is
   always `0`. When logged in, `loadVoteOverlay()` awaits `auth.whenReady`, then issues **two** reads in
   `Promise.allSettled` (Today first page, Last Week first page;
-  `GraphQLClient.request(..., { "firebase-auth-key": idToken })`) and records every non-zero vote into
+  `GraphQLClient.request`, signed by the auth interceptor) and records every non-zero vote into
   the **public** `userVotes`, bound into every `app-link-thread`'s `voteValues`. `allSettled`, not
   `all`: one failure must not lose the other's votes. Per-id (a thread renders root **and** members,
   each votable); an absent id means "no opinion", not `0`. `userVoteFor(linkId)`: overlay → anonymous

@@ -205,7 +205,6 @@ describe("HomeStore", () => {
           useValue: {
             isLoggedIn,
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
@@ -367,7 +366,6 @@ describe("HomeStore", () => {
     expect(requestMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ collapseThreads: true }),
-      expect.anything(),
     );
 
     store.setUserVote("x2", 1);
@@ -478,17 +476,13 @@ describe("HomeStore", () => {
     await vi.waitFor(() => expect(store.userVoteFor("x")).toBe(1));
 
     // The variables are the feed resource's, verbatim — see the mirror test below for why the
-    // window flags are load-bearing. The ONLY thing the authenticated read adds is the header.
-    expect(requestMock).toHaveBeenCalledWith(
-      expect.stringContaining("query Feed"),
-      {
-        first: FEED_PAGE_SIZE,
-        status: "LIVE",
-        currentServiceDayOnly: true,
-        collapseThreads: true,
-      },
-      { "firebase-auth-key": "token" },
-    );
+    // window flags are load-bearing. The ONLY thing the signed read adds is the interceptor's token.
+    expect(requestMock).toHaveBeenCalledWith(expect.stringContaining("query Feed"), {
+      first: FEED_PAGE_SIZE,
+      status: "LIVE",
+      currentServiceDayOnly: true,
+      collapseThreads: true,
+    });
     expect(store.userVoteFor("y")).toBe(0);
   });
 
@@ -564,12 +558,9 @@ describe("HomeStore", () => {
     expect(overlayToday).not.toHaveProperty("lineId");
     expect(overlayLastWeek).not.toHaveProperty("lineId");
 
-    expect(requestMock).toHaveBeenNthCalledWith(1, expect.any(String), todayWithoutFilter, {
-      "firebase-auth-key": "token",
-    });
-    expect(requestMock).toHaveBeenNthCalledWith(2, expect.any(String), lastWeekWithoutFilter, {
-      "firebase-auth-key": "token",
-    });
+    // The token is the auth interceptor's, so the call carries the variables and nothing else.
+    expect(requestMock).toHaveBeenNthCalledWith(1, expect.any(String), todayWithoutFilter);
+    expect(requestMock).toHaveBeenNthCalledWith(2, expect.any(String), lastWeekWithoutFilter);
     // Stated explicitly too, because a reader should not have to know that the equality above
     // happens to include it: the today overlay read is inside the service day, the last-week one is
     // inside the aligned 7-day window.
@@ -1023,18 +1014,13 @@ describe("HomeStore", () => {
     await vi.waitFor(() => expect(store.userVoteFor("w")).toBe(1));
 
     expect(requestMock).toHaveBeenCalledTimes(2);
-    expect(requestMock).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("query Feed"),
-      {
-        first: LAST_WEEK_PAGE_SIZE,
-        status: "LIVE",
-        lastWeekOnly: true,
-        alignPageToDay: true,
-        collapseThreads: true,
-      },
-      { "firebase-auth-key": "token" },
-    );
+    expect(requestMock).toHaveBeenNthCalledWith(2, expect.stringContaining("query Feed"), {
+      first: LAST_WEEK_PAGE_SIZE,
+      status: "LIVE",
+      lastWeekOnly: true,
+      alignPageToDay: true,
+      collapseThreads: true,
+    });
   });
 
   it("keeps the last-week votes when the today overlay read rejects", async () => {
@@ -1266,7 +1252,6 @@ describe("HomeStore: the service-day history reads", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
@@ -1592,7 +1577,6 @@ describe("HomeStore: the feed line filter", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
@@ -1887,7 +1871,6 @@ describe("HomeStore: the board partition", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
@@ -2152,7 +2135,6 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
@@ -2811,7 +2793,6 @@ describe("HomeStore: the official-notices archive read", () => {
           useValue: {
             isLoggedIn: signal(false),
             isAdmin: () => false,
-            idToken: async () => "token",
             whenReady: Promise.resolve(),
           },
         },
