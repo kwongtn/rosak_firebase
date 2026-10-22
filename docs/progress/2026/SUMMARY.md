@@ -30,23 +30,26 @@
 - About page: community projects, retired personnel, extracted admin editor (Oct 7–8, 20).
 - Docs squash to current state; profile reload/error-state/null-guard fixes and home `feed-link-<id>` anchors (Oct 21).
 - Audit fix pass (Oct 21): the 24 Fix-first and Quick-win findings of the 2026-10-21 audit are fixed (F044 partly). Changes: lazy Sentry chunks, sheet forms created on open, Kuala Lumpur day keys, a client Exif GPS strip, gallery `media(id)` deep links and share tags, Angular 22.2.3. Anonymous spottings now hide their location, profile rows, counts and photo uploader from everyone but the owner and admins. A follow-up accepts every image: HEIC, WebP and other formats the GPS strip cannot clean upload as they are, by the owner's choice. Suite at 178 files / 2432 tests.
+- Audit feature pass (Oct 22): sixteen feature findings of the same audit. Board Notice and Planned works chips, a `/station/:id` page, web push line alerts (frontend complete, VAPID key pending), an offline strip with a report outbox and restored drafts, an installable app with a service worker, calendar filters and `.ics`/`.csv` export, a 12-month incident chart and a typical-week strip, fleet progress and history export on the profile, viewer stepping and share, Fill from link mapping, spotting history details and asset status. The front page moved into its lazy route (initial bundle 997.74 → 841.90 kB) and spec files are isolated. Suite at 222 files / 3481 tests.
 
 ---
 
 ## Module Arcs
 
-| Module      | 2026 arc                                                                                                                           |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| insiden     | Aug platform (report form, votes, AI summarize, approval) → Sep event time and threads → Oct conversation tree and sublink editing |
-| console     | Aug approval queue and link triage → Sep Approve, Hide, Delete → Oct `/console/links` tree, accordion, Unhide                      |
-| home        | Sep landing page and shared link card → Oct refresh rework, network board, Pro dashboard                                           |
-| profile     | Aug public view and privacy modal → Sep/Oct "My Submitted Links" grouping and tree                                                 |
-| spotting    | Aug skeletons and z-index fixes → Sep combobox and route persistence → Oct report-form and mobile polish                           |
-| ads         | Aug `app-ad-slot`, AdSense units, robots.txt → Oct disclosure pill                                                                 |
-| methodology | Sep registry and `/methodology` page → Oct tooltip summaries                                                                       |
-| about       | Sep admin editor and grid → Oct retired personnel, community projects, editor extraction                                           |
-| tracker     | Aug latency and auth-gate fixes; Sep 24 info-panel copy change (`548581d`, `6727641`)                                              |
-| core        | Aug bulk-action composable and reload prompt → Oct `injectIsBrowser()`, shared test polyfill                                       |
+| Module      | 2026 arc                                                                                                                                                                                                                    |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| insiden     | Aug platform (report form, votes, AI summarize, approval) → Sep event time and threads → Oct conversation tree and sublink editing, line and severity filters, `.ics`/`.csv` export, 12-month chart, Fill from link mapping |
+| console     | Aug approval queue and link triage → Sep Approve, Hide, Delete → Oct `/console/links` tree, accordion, Unhide                                                                                                               |
+| home        | Sep landing page and shared link card → Oct refresh rework, network board, Pro dashboard, lazy route, Notice chips, push bell, report outbox, typical-week strip                                                            |
+| profile     | Aug public view and privacy modal → Sep/Oct "My Submitted Links" grouping and tree → Oct 22 fleet progress, vehicle links, history export, Alerts card                                                                      |
+| spotting    | Aug skeletons and z-index fixes → Sep combobox and route persistence → Oct report-form and mobile polish, drafts, history details, asset status                                                                             |
+| station     | Oct 22 `/station/:id` server-rendered page: serving lines, incidents, reports, assets; every station name links to it                                                                                                       |
+| gallery     | Oct 21 `media(id)` deep links and share tags → Oct 22 prev/next, swipe and share in the viewer                                                                                                                              |
+| ads         | Aug `app-ad-slot`, AdSense units, robots.txt → Oct disclosure pill                                                                                                                                                          |
+| methodology | Sep registry and `/methodology` page → Oct tooltip summaries, feature-pass metric docs                                                                                                                                      |
+| about       | Sep admin editor and grid → Oct retired personnel, community projects, editor extraction                                                                                                                                    |
+| tracker     | Aug latency and auth-gate fixes; Sep 24 info-panel copy change (`548581d`, `6727641`)                                                                                                                                       |
+| core        | Aug bulk-action composable and reload prompt → Oct `injectIsBrowser()`, shared test polyfill, `OnlineService`, offline outbox, push service, service worker and manifest                                                    |
 
 ---
 
@@ -70,7 +73,7 @@
 | Oct 1–20              | 152               | 10, see [SUMMARY](./10/SUMMARY.md) |
 | **Total (to Oct 20)** | **378**           |                                    |
 
-Counted with `git log --no-merges` on the checked-out branch on 2026-10-21. Oct 21 onward: see [10/SUMMARY](./10/SUMMARY.md).
+Counted with `git log --no-merges` on the checked-out branch on 2026-10-21. Oct 21 onward (73 commits for the audit fix pass, 189 for the Oct 22 feature pass to `28bc9b2`): see [10/SUMMARY](./10/SUMMARY.md).
 
 ---
 
@@ -79,3 +82,6 @@ Counted with `git log --no-merges` on the checked-out branch on 2026-10-21. Oct 
 - Staging cold-start TTFB is about 17 s, about 7 s of it in SSR render ([19.md](./10/19.md)).
 - Expanded line rows cannot show cause or direction; the GraphQL schema has no such field ([19.md](./10/19.md)).
 - Pro table last-report column is hourly precision; operator grouping is a heuristic ([19.md](./10/19.md)).
+- Web push needs `FCM_VAPID_KEY` in `apphosting.yaml` and `apphosting.staging.yaml` before the bell can register a token; delivery is untested end to end ([22.md](./10/22.md)).
+- The report outbox flushes on the home route only and has no idempotency key, so a report whose answer is lost can send twice ([22.md](./10/22.md)).
+- The front page's Notice chips cost one extra backend read per server render ([22.md](./10/22.md)).
