@@ -36,6 +36,8 @@ import {
 import {
   canMoveDown,
   canMoveUp,
+  chronologyErrors,
+  chronologyInputs,
   emptyChronology,
   indicatorDotClass,
   indicatorLabel,
@@ -43,6 +45,7 @@ import {
   removeChronology,
   setAllCollapsed,
   toggleCollapsed,
+  updateChronology,
   type ChronologyDraft,
 } from "./chronology-list.util";
 import {
@@ -318,6 +321,7 @@ export class IncidentFormComponent {
     this._fillNotes.set(NO_FILL_NOTES);
     this.extractStates.set(new Map());
     this.isSummarizing.set(false);
+    this._showChronologyErrors.set(false);
     this.incidentForm().reset();
   }
 
@@ -364,6 +368,30 @@ export class IncidentFormComponent {
       return next;
     });
   }
+
+  protected editChronology(
+    key: number,
+    field: "datetime" | "sourceUrl" | "content",
+    event: Event,
+  ): void {
+    const value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+    this.chronologies.update((list) => updateChronology(list, key, { [field]: value }));
+  }
+
+  protected setChronologyIndicator(key: number, event: Event): void {
+    // The select only offers INDICATORS.
+    const indicator = (event.target as HTMLSelectElement).value as ChronologyIndicator;
+    this.chronologies.update((list) => updateChronology(list, key, { indicator }));
+  }
+
+  /** Off until the first submit attempt, like a field's touched state; from then on a row's message
+   * follows every edit. */
+  private readonly _showChronologyErrors = signal(false);
+  protected readonly rowErrors = computed(() =>
+    this._showChronologyErrors()
+      ? chronologyErrors(this.chronologies())
+      : new Map<number, string>(),
+  );
 
   /** "Extract Data" — asks the Gemini-backed extractIncidentData callable to fill
    * this chronology entry from its source URL. Results within the 15s cap are
@@ -632,6 +660,13 @@ export class IncidentFormComponent {
       return;
     }
 
+    this._showChronologyErrors.set(true);
+    const [firstRowError] = chronologyErrors(this.chronologies()).values();
+    if (firstRowError) {
+      this.toast.error("Check the chronology", firstRowError);
+      return;
+    }
+
     this.isSubmitting.set(true);
     const target = this.sheet.editTarget();
     /** True when the edit created/resumed a DRAFT revision that was chained into the
@@ -666,12 +701,7 @@ export class IncidentFormComponent {
                 vehicleIds: this.selectedVehicleIds(),
                 stationIds: this.selectedStationIds(),
                 categoryIds: this.selectedCategoryIds(),
-                chronologies: this.chronologies().map((c) => ({
-                  indicator: c.indicator,
-                  datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
-                  sourceUrl: c.sourceUrl || null,
-                  content: c.content || null,
-                })),
+                chronologies: chronologyInputs(this.chronologies()),
                 version: target.version ?? null,
               },
             },
@@ -711,12 +741,7 @@ export class IncidentFormComponent {
               vehicleIds: this.selectedVehicleIds(),
               stationIds: this.selectedStationIds(),
               categoryIds: this.selectedCategoryIds(),
-              chronologies: this.chronologies().map((c) => ({
-                indicator: c.indicator,
-                datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
-                sourceUrl: c.sourceUrl || null,
-                content: c.content || null,
-              })),
+              chronologies: chronologyInputs(this.chronologies()),
             },
           },
           headers,
@@ -774,6 +799,7 @@ export class IncidentFormComponent {
     this.selectedStationIds.set([]);
     this.selectedCategoryId.set(defaultCategoryId(this.categoryOptions()));
     this._fillNotes.set(NO_FILL_NOTES);
+    this._showChronologyErrors.set(false);
     this.sheet.editTarget.set(null);
     this.incidentForm().reset();
   }

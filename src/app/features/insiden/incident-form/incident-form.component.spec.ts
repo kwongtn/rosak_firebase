@@ -487,6 +487,107 @@ describe("IncidentFormComponent", () => {
     expect(component.chronologies()).toEqual([]);
   });
 
+  describe("chronology entries", () => {
+    const host = () => fixture.nativeElement as HTMLElement;
+
+    async function openWithRows(rows: ChronologyDraft[]): Promise<ComponentUnderTest> {
+      sheet.open();
+      const component = asTestable(fixture);
+      component.model.set(filledModel());
+      component.chronologies.set(rows);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return component;
+    }
+
+    const rowErrors = () =>
+      Array.from(host().querySelectorAll('[data-testid="chronology-error"]')).map((error) =>
+        error.textContent?.trim(),
+      );
+
+    function type(selector: string, value: string): void {
+      const control = host().querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
+      if (!control) throw new Error(`${selector} not rendered`);
+      control.value = value;
+      control.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+    }
+
+    it("keeps each keystroke in the chronology signal, not only on blur", async () => {
+      const component = await openWithRows([emptyChronology(0)]);
+
+      type('[data-testid="chronology-row"] textarea', "Trains held");
+      type('[data-testid="chronology-row"] input[type="url"]', "https://x.com/a/1");
+      type('[data-testid="chronology-row"] input[type="datetime-local"]', "2026-08-01T08:30");
+
+      expect(component.chronologies()[0]).toMatchObject({
+        content: "Trains held",
+        sourceUrl: "https://x.com/a/1",
+        datetime: "2026-08-01T08:30",
+      });
+    });
+
+    it("drops an entry the rider added and never filled instead of sending a blank one", async () => {
+      authMocks.isAdmin.mockReturnValue(true);
+      const component = await openWithRows([
+        emptyChronology(0),
+        { ...emptyChronology(1), content: "Trains held" },
+      ]);
+
+      await component.submit();
+
+      const [, vars] = requestMock.mock.calls[0];
+      expect(vars.data.chronologies).toEqual([
+        { indicator: "GREEN", datetime: null, sourceUrl: null, content: "Trains held" },
+      ]);
+    });
+
+    it("blocks submit and names the entry that has a time but no description", async () => {
+      const component = await openWithRows([
+        { ...emptyChronology(0), content: "Started" },
+        { ...emptyChronology(1), datetime: "2026-08-01T09:00" },
+      ]);
+      expect(rowErrors()).toEqual([]);
+
+      await component.submit();
+      fixture.detectChanges();
+
+      const message = "Entry 2 has no description. Fill it in or remove it.";
+      expect(requestMock).not.toHaveBeenCalled();
+      expect(toastMocks.error).toHaveBeenCalledWith("Check the chronology", message);
+      expect(rowErrors()).toEqual([message]);
+      expect(sheet.isOpen()).toBe(true);
+    });
+
+    it("clears the message as the description is typed, then submits", async () => {
+      authMocks.isAdmin.mockReturnValue(true);
+      const component = await openWithRows([
+        { ...emptyChronology(0), datetime: "2026-08-01T09:00" },
+      ]);
+      await component.submit();
+      fixture.detectChanges();
+      expect(rowErrors()).toHaveLength(1);
+
+      type('[data-testid="chronology-row"] textarea', "Trains held");
+      expect(rowErrors()).toEqual([]);
+
+      await component.submit();
+      expect(requestMock.mock.calls[0][0]).toBe(CREATE_CALENDAR_INCIDENT_MUTATION);
+    });
+
+    it("shows the message on a collapsed entry too", async () => {
+      const component = await openWithRows([
+        { ...emptyChronology(0), sourceUrl: "https://x.com/a/1", collapsed: true },
+      ]);
+
+      await component.submit();
+      fixture.detectChanges();
+
+      expect(rowErrors()).toEqual(["Entry 1 has no description. Fill it in or remove it."]);
+    });
+  });
+
   describe("closing the sheet", () => {
     async function openDraft(): Promise<ComponentUnderTest> {
       sheet.open(incidentFixture());

@@ -351,6 +351,16 @@
               </div>
             </div>
 
+            @if (rowErrors().get(chronology.key); as message) {
+              <p
+                class="text-destructive text-xs"
+                [id]="'chronology-error-' + chronology.key"
+                data-testid="chronology-error"
+              >
+                {{ message }}
+              </p>
+            }
+
             @if (!chronology.collapsed) {
               <div class="flex flex-col gap-2">
                 <div class="flex flex-col gap-2 md:flex-row">
@@ -359,7 +369,7 @@
                     class="text-sm md:w-36 md:shrink-0"
                     [disabled]="isExtracting(chronology.key)"
                     [value]="chronology.indicator"
-                    (change)="chronology.indicator = $any($event.target).value"
+                    (change)="setChronologyIndicator(chronology.key, $event)"
                   >
                     @for (indicator of indicators; track indicator) {
                       <option [value]="indicator">{{ indicatorLabel(indicator) }}</option>
@@ -371,7 +381,7 @@
                     class="min-w-0 flex-1 text-sm"
                     [disabled]="isExtracting(chronology.key)"
                     [value]="chronology.datetime"
-                    (change)="chronology.datetime = $any($event.target).value"
+                    (input)="editChronology(chronology.key, 'datetime', $event)"
                   />
                 </div>
                 <div class="flex items-center gap-2">
@@ -382,7 +392,7 @@
                     [disabled]="isExtracting(chronology.key)"
                     placeholder="Source URL (optional)"
                     [value]="chronology.sourceUrl"
-                    (change)="chronology.sourceUrl = $any($event.target).value"
+                    (input)="editChronology(chronology.key, 'sourceUrl', $event)"
                   />
                   <button
                     hlmBtn
@@ -432,7 +442,11 @@
                   [disabled]="isExtracting(chronology.key)"
                   placeholder="What happened at this point"
                   [value]="chronology.content"
-                  (change)="chronology.content = $any($event.target).value"
+                  [attr.aria-invalid]="rowErrors().has(chronology.key) || null"
+                  [attr.aria-describedby]="
+                    rowErrors().has(chronology.key) ? 'chronology-error-' + chronology.key : null
+                  "
+                  (input)="editChronology(chronology.key, 'content', $event)"
                 ></textarea>
                 @if (hasLateResult(chronology.key)) {
                   <div

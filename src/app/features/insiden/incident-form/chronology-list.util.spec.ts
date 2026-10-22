@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   canMoveDown,
   canMoveUp,
+  chronologyErrors,
+  chronologyInputs,
   emptyChronology,
   indicatorDotClass,
   indicatorLabel,
+  isBlankChronology,
   moveChronology,
   removeChronology,
   setAllCollapsed,
   toggleCollapsed,
+  updateChronology,
   type ChronologyDraft,
 } from "./chronology-list.util";
 
@@ -123,6 +127,75 @@ describe("removeChronology", () => {
   it("returns the same contents when the key is absent", () => {
     const list = [draft(1)];
     expect(removeChronology(list, 9).length).toBe(1);
+  });
+});
+
+describe("updateChronology", () => {
+  it("patches only the targeted row, as a new list and a new row object", () => {
+    const list = [draft(1), draft(2)];
+    const next = updateChronology(list, 2, { content: "Trains held", indicator: "RED" });
+
+    expect(next).not.toBe(list);
+    expect(next[1]).not.toBe(list[1]);
+    expect(next[1]).toMatchObject({ key: 2, content: "Trains held", indicator: "RED" });
+    // The other row keeps its identity, and the input is not mutated.
+    expect(next[0]).toBe(list[0]);
+    expect(list[1].content).toBe("c2");
+  });
+
+  it("returns the same contents when the key is absent", () => {
+    const list = [draft(1)];
+    expect(updateChronology(list, 9, { content: "x" })).toEqual(list);
+  });
+});
+
+describe("isBlankChronology", () => {
+  it("is blank only with no description, time or source", () => {
+    expect(isBlankChronology(emptyChronology(1))).toBe(true);
+    expect(isBlankChronology({ ...emptyChronology(1), content: "   " })).toBe(true);
+    // The indicator alone is not content.
+    expect(isBlankChronology({ ...emptyChronology(1), indicator: "RED" })).toBe(true);
+    expect(isBlankChronology({ ...emptyChronology(1), datetime: "2026-08-01T08:00" })).toBe(false);
+    expect(isBlankChronology({ ...emptyChronology(1), sourceUrl: "https://x.com/a/1" })).toBe(
+      false,
+    );
+    expect(isBlankChronology(draft(1))).toBe(false);
+  });
+});
+
+describe("chronologyErrors", () => {
+  it("names each entry that has a time or source but no description, by its place in the list", () => {
+    const list = [
+      draft(5),
+      emptyChronology(6),
+      { ...emptyChronology(7), datetime: "2026-08-01T08:00" },
+      { ...emptyChronology(8), sourceUrl: "https://x.com/a/1", content: " " },
+    ];
+
+    expect(chronologyErrors(list)).toEqual(
+      new Map([
+        [7, "Entry 3 has no description. Fill it in or remove it."],
+        [8, "Entry 4 has no description. Fill it in or remove it."],
+      ]),
+    );
+  });
+
+  it("has nothing to say about a list of complete or blank entries", () => {
+    expect(chronologyErrors([draft(1), emptyChronology(2)]).size).toBe(0);
+  });
+});
+
+describe("chronologyInputs", () => {
+  it("drops blank rows and sends empty optional fields as null", () => {
+    const list = [
+      emptyChronology(1),
+      { ...draft(2, "Trains held"), indicator: "RED" as const },
+      emptyChronology(3),
+    ];
+
+    expect(chronologyInputs(list)).toEqual([
+      { indicator: "RED", datetime: null, sourceUrl: null, content: "Trains held" },
+    ]);
   });
 });
 

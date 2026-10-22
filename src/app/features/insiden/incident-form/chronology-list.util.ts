@@ -50,6 +50,49 @@ export function canMoveDown(list: readonly unknown[], index: number): boolean {
   return index >= 0 && index < list.length - 1;
 }
 
+/** The fields a rider edits on a row. */
+export type ChronologyPatch = Partial<Omit<ChronologyDraft, "key">>;
+
+/** Returns the list with one row replaced by a copy carrying `patch`, so the signal holding the list
+ * sees a new value on every edit. The other rows keep their identity. */
+export function updateChronology(
+  list: readonly ChronologyDraft[],
+  key: number,
+  patch: ChronologyPatch,
+): ChronologyDraft[] {
+  return list.map((c) => (c.key === key ? { ...c, ...patch } : c));
+}
+
+/** A row with nothing typed in it, such as an "Add entry" never filled in. The indicator alone is
+ * not content. Submit drops these rather than sending a blank timeline entry. */
+export function isBlankChronology(c: ChronologyDraft): boolean {
+  return !c.content.trim() && !c.datetime && !c.sourceUrl.trim();
+}
+
+/** The problems that block submit, keyed by row: a row with anything in it needs a description, or
+ * the public card shows an empty timeline entry. Entries are numbered as the form lists them. */
+export function chronologyErrors(list: readonly ChronologyDraft[]): Map<number, string> {
+  const errors = new Map<number, string>();
+  list.forEach((c, index) => {
+    if (!isBlankChronology(c) && !c.content.trim()) {
+      errors.set(c.key, `Entry ${index + 1} has no description. Fill it in or remove it.`);
+    }
+  });
+  return errors;
+}
+
+/** The rows as the create and update mutations take them, in list order, blank rows dropped. */
+export function chronologyInputs(list: readonly ChronologyDraft[]) {
+  return list
+    .filter((c) => !isBlankChronology(c))
+    .map((c) => ({
+      indicator: c.indicator,
+      datetime: c.datetime ? new Date(c.datetime).toISOString() : null,
+      sourceUrl: c.sourceUrl || null,
+      content: c.content || null,
+    }));
+}
+
 export function toggleCollapsed(list: readonly ChronologyDraft[], key: number): ChronologyDraft[] {
   return list.map((c) => (c.key === key ? { ...c, collapsed: !c.collapsed } : c));
 }
