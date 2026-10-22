@@ -240,6 +240,9 @@ export function graphqlResource<TData, TVars = Record<string, unknown>>(
  * One-shot GraphQL call for mutations (or queries fired imperatively, e.g. on submit)
  * rather than bound to the signal graph. Throws GraphQLRequestError if the response
  * carries a top-level `errors` array, so callers can rely on try/catch.
+ *
+ * A request that carries the viewer's `firebase-auth-key` never goes through the SSR transfer cache:
+ * the cache holds the server's anonymous answer to the same query and would hand it to the viewer.
  */
 @Injectable({ providedIn: "root" })
 export class GraphQLClient {
@@ -256,6 +259,11 @@ export class GraphQLClient {
     const response = await firstValueFrom(
       this.http.post<GraphQLResponse<TData>>(environment.backendGraphqlUrl, body, {
         headers: extraHeaders,
+        // The viewer's token makes this a different question from the one the server rendered
+        // (whose answer is "anonymous"): `isMine`, `userVote`. The SSR transfer cache keys on
+        // method, URL and body, not headers, and answers from the server's copy until the app first
+        // settles, so a token-bearing request has to skip it or it can come back anonymous.
+        transferCache: extraHeaders?.["firebase-auth-key"] ? false : undefined,
       }),
     );
     // Check errors FIRST before returning data. If GraphQL returned any errors,
