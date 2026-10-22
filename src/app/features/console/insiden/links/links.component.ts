@@ -671,15 +671,14 @@ export class SocialMediaLinksComponent {
   /** Mirrors link-form.schema's `required(f.url)` — Save is disabled while the URL is blank. */
   protected readonly canSave = computed(() => this.editUrl().trim().length > 0);
 
-  private appliedSearch: string | undefined;
-  private appliedCategoryId = "";
-  private appliedCompleted: CompletedFilter = "pending";
-  private appliedVisibility: VisibilityFilter = "all";
-  private appliedLineId: string | undefined;
-  private appliedVehicleId: string | undefined;
-  private appliedStationId: string | undefined;
-  private appliedDateFrom: string | undefined;
-  private appliedDateTo: string | undefined;
+  /** The APPLIED filter snapshot the queue's query (and its completeness answer) is built from —
+   *  written when a control commits, never the live signals. Always REPLACED, never mutated, so a
+   *  snapshot a request captured keeps describing that request. */
+  private applied: AppliedQueueFilters = {
+    categoryId: "",
+    completed: "pending",
+    visibility: "all",
+  };
 
   /** Is a `load()` waiting for the current one to finish before it runs? A plain
    *  field, not a signal: nothing renders from it, it is read and written only
@@ -694,37 +693,40 @@ export class SocialMediaLinksComponent {
   protected onSearchInput(value: string): void {
     this.searchTerm.set(value);
     this.queueDebouncer.push(() => {
-      this.appliedSearch = searchTermOrUndefined(this.searchTerm());
+      this.applied = { ...this.applied, search: searchTermOrUndefined(this.searchTerm()) };
       this.load();
     });
   }
 
   protected onCategoryChange(value: string): void {
     this.categoryId.set(value);
-    this.appliedCategoryId = value;
+    this.applied = { ...this.applied, categoryId: value };
     this.load();
   }
 
   protected onCompletedFilterChange(value: CompletedFilter): void {
     this.completedFilter.set(value);
-    this.appliedCompleted = value;
+    this.applied = { ...this.applied, completed: value };
     this.load();
   }
 
   /** Visibility refetches immediately, exactly like the Status select above. */
   protected onVisibilityFilterChange(value: VisibilityFilter): void {
     this.visibilityFilter.set(value);
-    this.appliedVisibility = value;
+    this.applied = { ...this.applied, visibility: value };
     this.load();
   }
 
   private pushFilterChange(): void {
     this.queueDebouncer.push(() => {
-      this.appliedLineId = this.filterLineId() || undefined;
-      this.appliedVehicleId = this.filterVehicleId() || undefined;
-      this.appliedStationId = this.filterStationId() || undefined;
-      this.appliedDateFrom = this.filterDateFrom() || undefined;
-      this.appliedDateTo = this.filterDateTo() || undefined;
+      this.applied = {
+        ...this.applied,
+        lineId: this.filterLineId() || undefined,
+        vehicleId: this.filterVehicleId() || undefined,
+        stationId: this.filterStationId() || undefined,
+        dateFrom: this.filterDateFrom() || undefined,
+        dateTo: this.filterDateTo() || undefined,
+      };
       this.load();
     });
   }
@@ -800,15 +802,7 @@ export class SocialMediaLinksComponent {
     this.filterStationId.set("");
     this.filterDateFrom.set("");
     this.filterDateTo.set("");
-    this.appliedSearch = undefined;
-    this.appliedCategoryId = "";
-    this.appliedCompleted = completed;
-    this.appliedVisibility = "all";
-    this.appliedLineId = undefined;
-    this.appliedVehicleId = undefined;
-    this.appliedStationId = undefined;
-    this.appliedDateFrom = undefined;
-    this.appliedDateTo = undefined;
+    this.applied = { categoryId: "", completed, visibility: "all" };
   }
 
   /* ---- Multi-select + conversation grouping ---------------------------- */
@@ -1582,23 +1576,6 @@ export class SocialMediaLinksComponent {
     }
   }
 
-  /** The APPLIED filter snapshot the queue's query (and its completeness answer)
-   *  is built from — the plain fields written when a control commits, never the
-   *  live signals. See `appliedFiltersAreUnfiltered` and `queueQueryVars`. */
-  private appliedSnapshot(): AppliedQueueFilters {
-    return {
-      search: this.appliedSearch,
-      categoryId: this.appliedCategoryId,
-      completed: this.appliedCompleted,
-      visibility: this.appliedVisibility,
-      lineId: this.appliedLineId,
-      vehicleId: this.appliedVehicleId,
-      stationId: this.appliedStationId,
-      dateFrom: this.appliedDateFrom,
-      dateTo: this.appliedDateTo,
-    };
-  }
-
   /** 🔴 A `load()` ARRIVING MID-LOAD IS QUEUED, NOT SWALLOWED.
    *
    *  The re-entrancy guard below exists so two filter changes cannot interleave
@@ -1678,9 +1655,9 @@ export class SocialMediaLinksComponent {
    * that already hold the loading flag (markCompleted) use this directly. */
   private async fetchLinks(): Promise<void> {
     /* 🔴 SNAPSHOT THE COMPLETENESS ANSWER BEFORE THE FIRST `await`, never read it
-     * back after the request. `vars` below is built from the applied filter fields
-     * in the same synchronous run, so the flag has to describe THAT query — and the
-     * fields are mutable plain properties, not a signal, so a later read describes
+     * back after the request. `vars` below is built from the applied snapshot
+     * in the same synchronous run, so the flag has to describe THAT query — and
+     * `applied` is a plain field that every commit replaces, so a later read describes
      * whatever the admin has done since.
      *
      * The window is real: `showAllLinks` rewrites every applied field to the
@@ -1691,7 +1668,7 @@ export class SocialMediaLinksComponent {
      * light up over rows whose siblings are not loaded, which is precisely the state
      * the flag exists to prevent. Capturing it here is what keeps the flag and the
      * rows it describes from ever disagreeing. */
-    const applied = this.appliedSnapshot();
+    const applied = this.applied;
     const queueIsComplete = appliedFiltersAreUnfiltered(applied);
     try {
       const idToken = await this.auth.idToken();
