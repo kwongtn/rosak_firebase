@@ -58,6 +58,12 @@ export const serverRoutes: ServerRoute[] = [
     path: "insiden/**",
     renderMode: RenderMode.Server,
   },
+  // /station/:id is public, request-independent GraphQL data (same reasoning as /gallery), and its
+  // server HTML carries the station's title and share tags for link previews.
+  {
+    path: "station/:id",
+    renderMode: RenderMode.Server,
+  },
   // /console is admin-only, auth-gated routes — SSR cannot authenticate the session, so render client-only.
   {
     path: "console/**",

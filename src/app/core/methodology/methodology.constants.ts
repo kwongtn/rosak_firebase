@@ -60,6 +60,13 @@ export interface MethodologyConstant {
  * are pinned by the specs next to the code that uses them (`home.queries.spec.ts`,
  * `incident-notices.util.spec.ts`), so the popover cannot promise a window or a cap the board does not
  * apply.
+ *
+ * `STATION_INCIDENT_HISTORY_LIMIT` and `STATION_REPORTS_PER_LINE` came with the station page
+ * (`features/station/`, published as `incidents.station` and `station.reports`). The first is how many
+ * of a station's other approved incidents its Recent incidents list shows; the second is how many of
+ * each serving line's newest status reports the page searches for the station. Both are display or
+ * read caps this client chooses, and `station.page.spec.ts` pins each against the constant in
+ * `station.queries.ts` that the page actually slices or requests with.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -72,4 +79,6 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES: { value: 15, source: "LINE_STATUS_DERIVE.md" },
   PLANNED_WORKS_WINDOW_DAYS: { value: 7, source: "INCIDENT_EPISODES.md" },
   LINE_NOTICE_MAX_CHIPS: { value: 2, source: "INCIDENT_EPISODES.md" },
+  STATION_INCIDENT_HISTORY_LIMIT: { value: 10, source: "INCIDENT_EPISODES.md" },
+  STATION_REPORTS_PER_LINE: { value: 10, source: "LINE_STATUS_DERIVE.md" },
 };

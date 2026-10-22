@@ -1,0 +1,239 @@
+@if (isNotFound()) {
+  <!-- The app's 404 page, with its own nav and footer; on the server it sets the HTTP 404 status. -->
+  <app-not-found data-testid="station-not-found" />
+} @else {
+  <app-nav />
+  <div class="mx-auto flex min-h-screen w-full flex-col gap-6 p-4 sm:p-6 lg:w-[90%]">
+    <main class="flex flex-1 flex-col gap-8">
+      @if (resource.hasError()) {
+        <app-retry-banner [resource]="resource" message="Couldn't load this station." />
+      } @else if (station(); as station) {
+        <div class="flex flex-col gap-3" data-testid="station-header">
+          <div class="flex flex-col gap-1">
+            <p class="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+              Station
+            </p>
+            <h1 class="text-2xl font-bold" data-testid="station-name">{{ station.displayName }}</h1>
+          </div>
+          <!-- One chip per serving line, linking to the line's page. The status badge is the line's
+               operational status; an Active line also shows what riders report in its current
+               window, when anyone has (the board's rule: a non-Active badge is the whole story). -->
+          <ul
+            class="flex flex-wrap gap-2"
+            aria-label="Lines at this station"
+            data-testid="station-lines"
+          >
+            @for (line of station.lines; track line.id) {
+              <li class="flex">
+                <a
+                  [routerLink]="['/spotting', line.id, 'details']"
+                  [attr.title]="line.displayName"
+                  class="border-border hover:bg-muted focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-full border py-1 pr-1 pl-2.5 text-xs font-semibold outline-none focus-visible:ring-2"
+                  data-testid="station-line"
+                >
+                  <span>{{ line.code }}</span>
+                  <line-status-badge [status]="line.status" data-testid="station-line-status" />
+                  @if (line.status === "ACTIVE" && line.passengerStatus) {
+                    <span
+                      hlmBadge
+                      [variant]="passengerVariant(line.passengerStatus)"
+                      data-testid="station-line-passenger"
+                      >{{ passengerLabel(line.passengerStatus) }}</span
+                    >
+                  }
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <section
+          class="flex flex-col gap-4"
+          aria-labelledby="station-incidents-heading"
+          data-testid="station-incidents"
+        >
+          <div class="flex items-center gap-1.5">
+            <h2 id="station-incidents-heading" class="text-lg font-semibold">Incidents</h2>
+            <app-info-popover
+              [label]="incidentsInfoTitle"
+              [content]="incidentsInfo"
+              [link]="incidentsInfoLink"
+              testId="station-incidents-popover"
+            />
+          </div>
+
+          <div class="flex flex-col gap-2" data-testid="station-current">
+            <h3 class="text-sm font-semibold">In effect now</h3>
+            @if (currentIncidents().length === 0) {
+              <p class="text-muted-foreground text-sm" data-testid="station-current-empty">
+                No approved incident at this station is in effect now.
+              </p>
+            } @else {
+              <ul class="flex flex-col gap-1.5">
+                @for (incident of currentIncidents(); track incident.id) {
+                  <li class="flex" data-testid="station-current-incident">
+                    <ng-container
+                      [ngTemplateOutlet]="incidentLink"
+                      [ngTemplateOutletContext]="{ $implicit: incident }"
+                    />
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <div class="flex flex-col gap-2" data-testid="station-history">
+            <h3 class="text-sm font-semibold">Recent incidents</h3>
+            @if (recentIncidents().length === 0) {
+              <p class="text-muted-foreground text-sm" data-testid="station-history-empty">
+                No other approved incident is tagged with this station.
+              </p>
+            } @else {
+              <ul class="flex flex-col gap-1.5">
+                @for (incident of recentIncidents(); track incident.id) {
+                  <li class="flex" data-testid="station-history-incident">
+                    <ng-container
+                      [ngTemplateOutlet]="incidentLink"
+                      [ngTemplateOutletContext]="{ $implicit: incident }"
+                    />
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </section>
+
+        @if (station.lines.length > 0) {
+          <section
+            class="flex flex-col gap-3"
+            aria-labelledby="station-reports-heading"
+            data-testid="station-reports"
+          >
+            <div class="flex items-center gap-1.5">
+              <h2 id="station-reports-heading" class="text-lg font-semibold">
+                Recent rider reports
+              </h2>
+              <app-info-popover
+                [label]="reportsInfoTitle"
+                [content]="reportsInfo"
+                [link]="reportsInfoLink"
+                testId="station-reports-popover"
+              />
+            </div>
+            @if (reportsResource.hasError()) {
+              <app-retry-banner
+                [resource]="reportsResource"
+                message="Couldn't load rider reports."
+              />
+            } @else if (reports(); as reports) {
+              @if (reports.length === 0) {
+                <p class="text-muted-foreground text-sm" data-testid="station-reports-empty">
+                  No recent report on these lines names this station.
+                </p>
+              } @else {
+                <ul class="flex flex-col gap-1.5">
+                  @for (report of reports; track report.id) {
+                    <li
+                      class="border-border flex flex-col gap-1 rounded-lg border p-2.5 text-sm"
+                      data-testid="station-report"
+                    >
+                      <div class="flex items-start gap-2">
+                        <div class="flex min-w-0 flex-wrap items-center gap-2">
+                          <span hlmBadge variant="outline" data-testid="station-report-line">{{
+                            report.line.code
+                          }}</span>
+                          <span hlmBadge [variant]="passengerVariant(report.status)">{{
+                            passengerLabel(report.status)
+                          }}</span>
+                          @if (report.delayMinutes; as delay) {
+                            <span class="text-muted-foreground text-xs">{{ delay }} min delay</span>
+                          }
+                        </div>
+                        <span
+                          class="text-muted-foreground ml-auto shrink-0 text-xs"
+                          title="Reported {{ report.created | date: 'MMM d, y HH:mm' }}"
+                          data-testid="station-report-time"
+                        >
+                          {{ humanizeSince(report.created) }}
+                        </span>
+                      </div>
+                      @if (report.notes) {
+                        <p class="text-muted-foreground">{{ report.notes }}</p>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            } @else {
+              <!-- Also what the server renders: this read is browser-only. -->
+              <div hlmSkeleton class="h-16 w-full" data-testid="station-reports-loading"></div>
+            }
+          </section>
+        }
+
+        <section
+          class="flex flex-col gap-3"
+          aria-labelledby="station-assets-heading"
+          data-testid="station-assets"
+        >
+          <h2 id="station-assets-heading" class="text-lg font-semibold">Lifts and escalators</h2>
+          @if (station.assets.length === 0) {
+            <p class="text-muted-foreground text-sm" data-testid="station-assets-empty">
+              No lifts or escalators are recorded for this station yet.
+            </p>
+          } @else {
+            <p class="text-muted-foreground text-xs" data-testid="station-asset-note">
+              Each asset's status is set by the MLPTF team, not reported live by riders, so it can
+              lag behind a breakdown.
+            </p>
+            <ul class="flex flex-col gap-1.5">
+              @for (asset of station.assets; track asset.id) {
+                <li
+                  class="border-border flex flex-col gap-1 rounded-lg border p-2.5 text-xs"
+                  data-testid="station-asset"
+                >
+                  <div class="flex items-center gap-2">
+                    <span hlmBadge variant="outline">{{
+                      assetTypeLabel[asset.assetType] ?? asset.assetType
+                    }}</span>
+                    <span class="text-muted-foreground truncate">
+                      {{ asset.shortDescription || asset.officialid || "—" }}
+                    </span>
+                    <asset-status-badge class="ml-auto shrink-0" [status]="asset.status" />
+                  </div>
+                  @if (asset.longDescription) {
+                    <p class="text-muted-foreground">{{ asset.longDescription }}</p>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      } @else {
+        <div class="flex flex-col gap-4" data-testid="station-loading">
+          <div hlmSkeleton class="h-8 w-56"></div>
+          <div hlmSkeleton class="h-7 w-full max-w-md"></div>
+          <div hlmSkeleton class="h-32 w-full"></div>
+        </div>
+      }
+    </main>
+
+    <app-footer />
+  </div>
+}
+
+<!-- One incident row: severity (a word, not only a colour), title and start day, linking to that day
+     on the incident calendar. -->
+<ng-template #incidentLink let-incident>
+  <a
+    [routerLink]="incident.link"
+    class="border-border hover:bg-muted focus-visible:ring-ring/50 flex min-w-0 flex-1 items-center gap-2 rounded-lg border p-2.5 text-sm outline-none focus-visible:ring-2"
+    data-testid="station-incident-link"
+  >
+    <span hlmBadge [variant]="incident.severityVariant">{{ incident.severityLabel }}</span>
+    <span class="min-w-0 truncate">{{ incident.title }}</span>
+    <span class="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">{{
+      incident.startDatetime | date: "d MMM y"
+    }}</span>
+  </a>
+</ng-template>

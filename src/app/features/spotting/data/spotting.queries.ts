@@ -451,6 +451,13 @@ export interface LineStationAssetsQueryVars {
 
 export type AssetType = "ESCALATOR" | "LIFT";
 
+/** A station asset's kind in plain words; shared by the line page's assets section and the station
+ * page. */
+export const ASSET_TYPE_LABEL: Record<AssetType, string> = {
+  LIFT: "Lift",
+  ESCALATOR: "Escalator",
+};
+
 interface StationAsset {
   id: string;
   assetType: AssetType;

@@ -52,6 +52,8 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES",
       "PLANNED_WORKS_WINDOW_DAYS",
       "LINE_NOTICE_MAX_CHIPS",
+      "STATION_INCIDENT_HISTORY_LIMIT",
+      "STATION_REPORTS_PER_LINE",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -98,6 +100,18 @@ describe("methodology render util: renderMethodologyCopy", () => {
     expect(METHODOLOGY_CONSTANTS["LINE_NOTICE_MAX_CHIPS"]).toEqual({
       value: 2,
       source: "INCIDENT_EPISODES.md",
+    });
+    // The station page: how many other incidents its Recent list shows, and how many of each serving
+    // line's newest reports it searches for the station. Both are caps this client chooses, published
+    // because the page's popovers name them. `station.page.spec.ts` pins each against the constant in
+    // `station.queries.ts` that the page slices or requests with.
+    expect(METHODOLOGY_CONSTANTS["STATION_INCIDENT_HISTORY_LIMIT"]).toEqual({
+      value: 10,
+      source: "INCIDENT_EPISODES.md",
+    });
+    expect(METHODOLOGY_CONSTANTS["STATION_REPORTS_PER_LINE"]).toEqual({
+      value: 10,
+      source: "LINE_STATUS_DERIVE.md",
     });
   });
 

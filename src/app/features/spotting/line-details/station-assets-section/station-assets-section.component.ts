@@ -9,16 +9,11 @@ import { HlmSkeleton } from "../../../../ui/skeleton/skeleton";
 import { RetryBannerComponent } from "../../../../ui/retry-banner/retry-banner.component";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import {
-  AssetType,
+  ASSET_TYPE_LABEL,
   LINE_STATION_ASSETS_QUERY,
   LineStationAssetsQueryData,
   LineStationAssetsQueryVars,
 } from "../../data/spotting.queries";
-
-const ASSET_TYPE_LABEL: Record<AssetType, string> = {
-  LIFT: "Lift",
-  ESCALATOR: "Escalator",
-};
 
 /**
  * Read-only listing of each station's tracked assets (lifts, escalators) on this line, with each

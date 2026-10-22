@@ -184,6 +184,14 @@ const REVIEWED_AT_REPORT_OUTBOX = "2026-10-22";
 const REVIEWED_AT_LINE_NOTICES = "2026-10-22";
 
 /**
+ * Bumped when the station page (`/station/:id`) shipped (2026-10-22, UTC). It publishes TWO new rules:
+ * which incidents a station lists (`episodes`: approved ones tagged with it, in effect now or the
+ * newest of the rest) and which rider reports it shows (`line-status`: the ones that name it among
+ * each serving line's newest). A constant of its own for the reason every one above has one.
+ */
+const REVIEWED_AT_STATION_PAGE = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -216,8 +224,9 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
     // Bumped for `/insiden`'s "Last 12 months" chart: the section now carries its first metric. Bumped
-    // again for the front page board's Notice / Planned works chips (REVIEWED_AT_LINE_NOTICES).
-    lastReviewed: REVIEWED_AT_LINE_NOTICES,
+    // again for the front page board's Notice / Planned works chips (REVIEWED_AT_LINE_NOTICES), and for
+    // the station page's incident lists (REVIEWED_AT_STATION_PAGE).
+    lastReviewed: REVIEWED_AT_STATION_PAGE,
     inProgress: true,
   },
   {
@@ -231,9 +240,10 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     // a definition and a reachable one. Every metric on this page belongs to this section, so the
     // section is what was reviewed. Also bumped for the line-details In-Service share chip surface
     // and again when the front page's metrics gained a tooltip-sized summary, and when the vehicle
-    // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE), and when the
-    // line-status sheet's outbox published the queued-report expiry (REVIEWED_AT_REPORT_OUTBOX).
-    lastReviewed: REVIEWED_AT_REPORT_OUTBOX,
+    // count's "in service" badge was explained (REVIEWED_AT_IN_SERVICE_BADGE), when the
+    // line-status sheet's outbox published the queued-report expiry (REVIEWED_AT_REPORT_OUTBOX), and
+    // when the station page published which rider reports it shows (REVIEWED_AT_STATION_PAGE).
+    lastReviewed: REVIEWED_AT_STATION_PAGE,
     inProgress: true,
   },
   {
@@ -716,5 +726,38 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
     lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
+  },
+  /* ---- the station page (`features/station/station.page.ts`). `ownerRoute` is null for both: the page
+     lives at `/station/:id`, and there is no bare `/station` route for the registry to resolve. ---- */
+  {
+    // 🔴 What a rider cannot read off the two lists: WHICH incidents a station gets (approved ones
+    // tagged with it; the incident list also holds drafts) and why "Recent" can hold a planned work
+    // that has not started yet (it is everything not in effect now, newest start first). An incident
+    // RECORD rule, so it sits with the other incident entries in the same stopgap section.
+    id: "incidents.station",
+    sectionId: "episodes",
+    title: "Incidents at a station",
+    definition:
+      "A station's page lists approved (live) incidents from the incident calendar that are tagged with that station. In effect now lists the ones running now: they have started and have not ended, or they have no end time yet. Recent incidents lists the {{STATION_INCIDENT_HISTORY_LIMIT}} newest of the others by start time, so it can include planned works that have not started yet. Drafts, reports still waiting for approval and rejected ones are never shown. Stations are tagged by the people who report an incident and checked by moderators, so an incident that affected a station but was not tagged with it is not listed, and an empty list only means that no approved incident is tagged with the station.",
+    summary:
+      "Approved incidents tagged with this station. In effect now: started and not yet ended. Recent: the {{STATION_INCIDENT_HISTORY_LIMIT}} newest of the rest, which can include planned works. Drafts and pending reports are never shown.",
+    ownerRoute: null,
+    sourceSpec: "INCIDENT_EPISODES.md",
+    lastReviewed: REVIEWED_AT_STATION_PAGE,
+  },
+  {
+    // 🔴 The list is a SEARCH of a bounded read, not a station total: the backend has no station
+    // filter on reports, so the page reads each serving line's newest reports and keeps the ones that
+    // name the station. On a busy line that reaches back only a short time, and the sentence says so.
+    id: "station.reports",
+    sectionId: "line-status",
+    title: "Rider reports that name a station",
+    definition:
+      "A station's page shows the line status reports that name the station, taken from the {{STATION_REPORTS_PER_LINE}} newest reports of each line that serves it, newest first. A rider chooses which stations a report names, so a report about this station that does not name it is not shown, and a report older than its line's newest {{STATION_REPORTS_PER_LINE}} is not searched: on a busy line the list reaches back only a short time. Each row is one rider's report as filed. The list counts reports, not faults, and it is not a status of the station.",
+    summary:
+      "Line status reports that name this station, from the {{STATION_REPORTS_PER_LINE}} newest reports of each line serving it. Older reports are not searched, and it counts reports, not faults.",
+    ownerRoute: null,
+    sourceSpec: "LINE_STATUS_DERIVE.md",
+    lastReviewed: REVIEWED_AT_STATION_PAGE,
   },
 ];

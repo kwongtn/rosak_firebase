@@ -64,6 +64,13 @@ export const routes: Routes = [
     loadComponent: () => import("./features/insiden/insiden.page").then((m) => m.InsidenPage),
   },
   {
+    // One station: its lines, incidents, rider reports and assets. Every station chip links here. The
+    // page names the tab after the station once it has loaded; this title covers the wait.
+    path: "station/:id",
+    title: "MLPTF | Station",
+    loadComponent: () => import("./features/station/station.page").then((m) => m.StationPage),
+  },
+  {
     path: "console",
     title: "MLPTF | Console",
     loadChildren: () => import("./features/console/console.routes").then((m) => m.CONSOLE_ROUTES),
