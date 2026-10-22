@@ -1,10 +1,12 @@
 import { TestBed } from "@angular/core/testing";
-import { HttpClient, HttpResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse, HttpResponse } from "@angular/common/http";
 import { PLATFORM_ID } from "@angular/core";
 import { of, throwError } from "rxjs";
 import { ImageUploadService, UPLOAD_ERROR_REPORTER } from "./image-upload.service";
 import { AuthService } from "../auth/auth.service";
+import { ImageFile } from "./image-file";
 import { savePendingUpload } from "./upload-queue-db";
+import { environment } from "../../../environments/environment";
 
 /**
  * jsdom has no IndexedDB, so the real `deletePendingUpload` rejects when its
@@ -275,6 +277,114 @@ describe("ImageUploadService", () => {
       expect(read).toHaveBeenCalledTimes(2);
       const [sent] = sentImages();
       expect(new Uint8Array(await sent.arrayBuffer()).includes(0xab)).toBe(false);
+    });
+  });
+
+  describe("the queue", () => {
+    const READY = (file: File): ImageFile => ({ file, toCompress: false, isCompressed: true });
+    const post = () => TestBed.inject(HttpClient).post as ReturnType<typeof vi.fn>;
+    const photo = (name = "train.jpg") => new File(["bytes"], name, { type: "image/jpeg" });
+
+    beforeEach(() => {
+      // The queue ticks once a second: fake time makes a tick exact.
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("posts a photo as multipart form data with its owner, its type and the viewer's token", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      const file = photo();
+
+      service.addToQueue(7, READY(file), "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(post()).toHaveBeenCalledTimes(1);
+      const [url, body, options] = post().mock.calls[0];
+      expect(url).toBe(`${environment.backendUrl}upload/`);
+      expect((body as FormData).get("related_id")).toBe("7");
+      expect((body as FormData).get("upload_type")).toBe("SPOTTING_EVENT");
+      expect(((body as FormData).get("image") as File).name).toBe("train.jpg");
+      expect(options).toEqual({ headers: { "Firebase-Auth-Key": "token" } });
+    });
+
+    it("sends no auth header when nobody is signed in", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      vi.mocked(TestBed.inject(AuthService).idToken).mockResolvedValue(null);
+
+      service.addToQueue(7, READY(photo()), "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(post().mock.calls[0][2]).toEqual({ headers: {} });
+    });
+
+    it("counts the queue down as photos go out, and stops its timer once it is empty", async () => {
+      const service = TestBed.inject(ImageUploadService);
+
+      service.addToQueue(1, READY(photo("a.jpg")), "SPOTTING_EVENT");
+      service.addToQueue(1, READY(photo("b.jpg")), "SPOTTING_EVENT");
+      expect([service.pendingCount(), service.totalCount(), service.percentUploaded()]).toEqual([
+        2, 2, 0,
+      ]);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect([service.pendingCount(), service.totalCount(), service.percentUploaded()]).toEqual([
+        0, 2, 100,
+      ]);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("keeps a photo whose upload failed and sends it again on the next tick", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      post().mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
+
+      service.addToQueue(1, READY(photo()), "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(service.pendingCount()).toBe(1);
+      expect(service.percentUploaded()).toBe(0);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(post()).toHaveBeenCalledTimes(2);
+      expect(service.pendingCount()).toBe(0);
+      expect(service.percentUploaded()).toBe(100);
+    });
+
+    it("holds a photo that is still compressing until it is ready", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      const compressing: ImageFile = { file: photo(), toCompress: true, isCompressed: false };
+
+      service.addToQueue(1, compressing, "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(post()).not.toHaveBeenCalled();
+      expect(service.pendingCount()).toBe(1);
+
+      compressing.isCompressed = true;
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(post()).toHaveBeenCalledTimes(1);
+      expect(service.pendingCount()).toBe(0);
+    });
+
+    it("reports a photo it could not save to IndexedDB and still uploads it", async () => {
+      const service = TestBed.inject(ImageUploadService);
+      const failure = new DOMException("quota", "QuotaExceededError");
+      vi.stubGlobal("indexedDB", {
+        open: () => {
+          const request = { error: failure, onerror: null as (() => void) | null };
+          queueMicrotask(() => request.onerror?.());
+          return request;
+        },
+      });
+
+      service.addToQueue(1, READY(photo()), "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(reportError).toHaveBeenCalledWith(failure);
+      expect(post()).toHaveBeenCalledTimes(1);
+      vi.unstubAllGlobals();
     });
   });
 });
