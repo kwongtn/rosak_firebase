@@ -18,9 +18,10 @@ npm run serve:ssr:web           # run the built SSR server from dist/
 npm test -- --no-watch          # Vitest single run (= npm run test:ci). REQUIRED in automation:
                                 # watch defaults to true in a TTY and hangs
 npm test -- --no-watch --filter "^App"   # single suite by name regex
+npm run test:scripts            # node:test specs for scripts/*.mjs (quoted glob: `node --test scripts/` fails on Node 24)
 npm run test:coverage           # unit tests + v8 coverage summary and lcov (report only, no threshold)
 npx prettier --check .          # the only lint gate (CI + pre-commit); --write . autofixes
-npm run verify                  # full gate: prettier + unit tests + prod build (prefer this)
+npm run verify                  # full gate: prettier + script tests + unit tests + prod build (prefer this)
 npm run e2e                     # Playwright: dev build + mock GraphQL server (see e2e/);
                                 # run `npx playwright install chromium` once first
 ```

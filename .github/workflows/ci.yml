@@ -65,7 +65,7 @@ jobs:
 
       # The build scripts' env parsing (scripts/*.test.mjs), with node's built-in runner.
       - name: Test build scripts
-        run: node --test "scripts/*.test.mjs"
+        run: npm run test:scripts
 
       # Regenerate gitignored codegen files (src/build-info.ts,
       # src/environments/*.generated.ts, public/favicon.*) that `ng test`

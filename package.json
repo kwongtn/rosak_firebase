@@ -15,8 +15,9 @@
     "pretest": "npm run generate",
     "test": "ng test",
     "test:ci": "npm test -- --no-watch",
+    "test:scripts": "node --test \"scripts/*.test.mjs\"",
     "test:coverage": "npm test -- --no-watch --coverage --coverage-reporters=text-summary --coverage-reporters=lcov",
-    "verify": "prettier --check . && npm run test:ci && npm run build",
+    "verify": "prettier --check . && npm run test:scripts && npm run test:ci && npm run build",
     "serve:ssr:web": "node dist/web/server/server.mjs",
     "prepare": "husky"
   },
