@@ -2,6 +2,7 @@ import { Component, provideZonelessChangeDetection, signal } from "@angular/core
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { expectNoAxeViolations } from "../../../testing/axe";
 import { HlmSheet, HlmSheetBody } from "./sheet";
 
 @Component({
@@ -166,5 +167,24 @@ describe("HlmSheet once closed", () => {
 
     expect(anchors().map((anchor) => anchor.getAttribute("tabindex"))).toEqual(["0", "0"]);
     expect(panel().hasAttribute("inert")).toBe(false);
+  });
+});
+
+describe("HlmSheet accessibility", () => {
+  afterEach(() => {
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+  });
+
+  it("has no structural axe violations while open", async () => {
+    await TestBed.configureTestingModule({
+      imports: [TrapHostComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TrapHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await expectNoAxeViolations(fixture);
   });
 });

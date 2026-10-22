@@ -2,6 +2,7 @@ import { Component, provideZonelessChangeDetection, signal } from "@angular/core
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectNoAxeViolations } from "../../../testing/axe";
 import { ComboboxItem, HlmCombobox } from "./combobox";
 
 const ITEMS: ComboboxItem<string>[] = [
@@ -306,6 +307,15 @@ describe("HlmCombobox", () => {
       openList();
 
       expect(listbox()?.getAttribute("aria-label")).toBe("Line");
+    });
+
+    it("has no structural axe violations, closed or open", async () => {
+      fixture.componentRef.setInput("aria-label", "Line");
+      fixture.detectChanges();
+      await expectNoAxeViolations(fixture);
+
+      openList();
+      await expectNoAxeViolations(fixture);
     });
 
     it("tracks the highlighted row in aria-activedescendant and aria-selected", () => {
