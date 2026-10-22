@@ -17,13 +17,18 @@
     "test:ci": "npm test -- --no-watch",
     "test:scripts": "node --test \"scripts/*.test.mjs\"",
     "test:coverage": "npm test -- --no-watch --coverage --coverage-reporters=text-summary --coverage-reporters=lcov",
+    "lint": "eslint .",
     "verify": "prettier --check . && npm run test:scripts && npm run test:ci && npm run build",
     "serve:ssr:web": "node dist/web/server/server.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,ts,json,css,html,md}": [
+    "*.{js,json,css,md}": [
       "prettier --write"
+    ],
+    "*.{ts,html}": [
+      "prettier --write",
+      "eslint --no-warn-ignored"
     ]
   },
   "private": true,
