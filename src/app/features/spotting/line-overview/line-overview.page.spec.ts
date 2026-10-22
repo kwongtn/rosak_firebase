@@ -1,4 +1,9 @@
-import { PLATFORM_ID, provideZonelessChangeDetection, signal } from "@angular/core";
+import {
+  PLATFORM_ID,
+  provideZonelessChangeDetection,
+  signal,
+  type WritableSignal,
+} from "@angular/core";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { Router, provideRouter } from "@angular/router";
@@ -98,6 +103,23 @@ describe("LineOverviewPage", () => {
 
     expect(toastState.toasts()).toHaveLength(0);
     expect(redirects()).toEqual([]);
+  });
+
+  it("clears the status filter when the line changes, and keeps it while the line stays", async () => {
+    await render("4");
+    const { statusFilter } = fixture.componentInstance as unknown as {
+      statusFilter: WritableSignal<string | null>;
+    };
+
+    statusFilter.set("OUT_OF_SERVICE");
+    fixture.componentRef.setInput("lineId", "4");
+    TestBed.tick();
+    expect(statusFilter()).toBe("OUT_OF_SERVICE");
+
+    // "5" is not in the store, so the not-found toast and redirect also run; only the filter is checked.
+    fixture.componentRef.setInput("lineId", "5");
+    TestBed.tick();
+    expect(statusFilter()).toBeNull();
   });
 
   describe("sort query params", () => {
