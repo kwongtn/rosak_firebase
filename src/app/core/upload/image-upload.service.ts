@@ -115,7 +115,8 @@ export class ImageUploadService {
     this.totalCount.update((n) => n + 1);
     this.refreshCounts();
 
-    if (this.isBrowser) {
+    // Only a photo that is ready is saved: a resumed record is sent as it is, never compressed.
+    if (this.isBrowser && (!file.toCompress || file.isCompressed)) {
       savePendingUpload({ relatedId, type, file: file.file })
         .then((dbId) => (entry.dbId = dbId))
         .catch((err) => {

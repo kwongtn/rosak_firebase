@@ -292,6 +292,7 @@ describe("ImageUploadService", () => {
 
     afterEach(() => {
       vi.useRealTimers();
+      vi.unstubAllGlobals();
     });
 
     it("posts a photo as multipart form data with its owner, its type and the viewer's token", async () => {
@@ -336,7 +337,9 @@ describe("ImageUploadService", () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it("keeps a photo whose upload failed and sends it again on the next tick", async () => {
+    // Pins today's behaviour: a failed photo is sent again, with no backoff and no giving up. The
+    // time advanced is generous so that adding a backoff (F045) does not fail this test.
+    it("keeps a photo whose upload failed and sends it again", async () => {
       const service = TestBed.inject(ImageUploadService);
       post().mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
 
@@ -345,26 +348,33 @@ describe("ImageUploadService", () => {
       expect(service.pendingCount()).toBe(1);
       expect(service.percentUploaded()).toBe(0);
 
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(30_000);
 
       expect(post()).toHaveBeenCalledTimes(2);
       expect(service.pendingCount()).toBe(0);
       expect(service.percentUploaded()).toBe(100);
     });
 
-    it("holds a photo that is still compressing until it is ready", async () => {
+    it("holds a photo that is still compressing until it is ready, and does not save it to IndexedDB", async () => {
       const service = TestBed.inject(ImageUploadService);
       const compressing: ImageFile = { file: photo(), toCompress: true, isCompressed: false };
+      const queue = () =>
+        (service as unknown as { pendingUploads: { dbId?: number }[] }).pendingUploads;
 
       service.addToQueue(1, compressing, "SPOTTING_EVENT");
+      service.addToQueue(1, READY(photo("b.jpg")), "SPOTTING_EVENT");
+      await vi.advanceTimersByTimeAsync(0);
+      // Only the ready photo has a record.
+      expect(queue().map((entry) => typeof entry.dbId)).toEqual(["undefined", "number"]);
+
       await vi.advanceTimersByTimeAsync(3000);
-      expect(post()).not.toHaveBeenCalled();
+      expect(post()).toHaveBeenCalledTimes(1);
       expect(service.pendingCount()).toBe(1);
 
       compressing.isCompressed = true;
       await vi.advanceTimersByTimeAsync(1000);
 
-      expect(post()).toHaveBeenCalledTimes(1);
+      expect(post()).toHaveBeenCalledTimes(2);
       expect(service.pendingCount()).toBe(0);
     });
 
@@ -384,7 +394,6 @@ describe("ImageUploadService", () => {
 
       expect(reportError).toHaveBeenCalledWith(failure);
       expect(post()).toHaveBeenCalledTimes(1);
-      vi.unstubAllGlobals();
     });
   });
 });

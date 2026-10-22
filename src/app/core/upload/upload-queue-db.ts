@@ -21,10 +21,10 @@ interface PersistedUpload {
  * an upload continue running while the tab/browser is actually closed; nothing in a standard web
  * app can do that (see ImageUploadService's own doc comment for the fuller honest breakdown).
  *
- * Every function here is best-effort and never throws to its caller: a failure (private browsing,
- * storage quota, an unsupported browser) should mean "this session's queue isn't backed up," not
- * "uploading is broken" — ImageUploadService already works perfectly well with an in-memory-only
- * queue, which is exactly what callers fall back to.
+ * Each function rejects when the browser refuses storage (private browsing, storage quota, an
+ * unsupported browser). ImageUploadService catches and reports that, so it means "this session's
+ * queue isn't backed up," not "uploading is broken" — ImageUploadService already works perfectly
+ * well with an in-memory-only queue, which is exactly what it falls back to.
  */
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
