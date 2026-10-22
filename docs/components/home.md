@@ -37,10 +37,10 @@
   - `hero/` — `home-hero.component.ts` (`app-home-hero`), `network-sparkline.component.ts`
     (`app-network-sparkline`).
   - `line-pulse/` — `network-board`, `line-pulse-card`, `line-pulse-row`, `line-alert-bell`,
-    `line-notices`, `line-status-chart`, `line-status-reports`, `status-info-chip` (thin wrapper over
-    the shared `app-info-popover`: `showIcon=false`, forwards `showMethodologyLink`;
-    `status-info-chip.server.spec.ts` renders it through the real server path to guard
-    SSR/hydration) — each `*.component.ts`.
+    `line-notices`, `line-status-chart`, `line-week-profile`, `line-status-reports`,
+    `status-info-chip` (thin wrapper over the shared `app-info-popover`: `showIcon=false`, forwards
+    `showMethodologyLink`; `status-info-chip.server.spec.ts` renders it through the real server path to
+    guard SSR/hydration) — each `*.component.ts`.
   - `pro/` — `pro-dashboard`, `pro-lines-widget` (+ `pro-lines-table.component.ts` / `.util.ts`),
     `pro-feed-widget`, `network-heat-strip`, `pro-incidents-widget`, `pro-report-ranking`,
     `pro-official-widget.ts`.
@@ -57,7 +57,8 @@
     `home-view-mode.service.ts`; `line-status-sheet.service.ts`; `submit-line-status-report.ts` (the
     one send path for a status report); `report-outbox-flush.ts` (`provideReportOutboxFlush()`);
     pure utils `incident-notices`, `network-summary`, `board-lines`, `status-confidence`,
-    `status-history-display`, `status-info`, `line-status-metrics`, `passenger-status`, `home-feed`,
+    `status-history-display`, `week-profile-display`, `status-info`, `line-status-metrics`,
+    `passenger-status`, `home-feed`,
     `feed-filter`, `feed-day-groups`, `line-family` (each `*.util.ts`).
     Specs sit beside each file.
 
@@ -147,7 +148,11 @@
     `stations { id displayName }`) back the expanded panel; `NETWORK_STATUS_HISTORY_QUERY`
     (`networkStatusHistory(dayStartHour)`) and `LINES_STATUS_HISTORY_QUERY`
     (`linesStatusHistory(lineIds)`) back the sparkline, row tally, heat grid and Pro ranking (same
-    `LineStatusHourBucket` fields, pinned in the spec); `SUBMIT_LINE_STATUS_REPORT_MUTATION`
+    `LineStatusHourBucket` fields, pinned in the spec); `LINE_STATUS_WEEK_PROFILE_QUERY`
+    (`lineStatusWeekProfile(lineId, weeks, dayStartHour)`: one slot per weekday and hour, with the hourly
+    bucket's `count` / `dominantStatus` / `statusCounts`) backs the expanded panel's typical week and is
+    the one history document whose `weeks` and `dayStartHour` are SENT, as literals (`WEEK_PROFILE_WEEKS`,
+    `SERVICE_DAY_START_HOUR`), because the grid is laid out from them; `SUBMIT_LINE_STATUS_REPORT_MUTATION`
     (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
     `submitLineStatusReport(graphql, auth, input, { quiet })` (`data/submit-line-status-report.ts`),
     the one path the sheet's Submit and the outbox flush share. It reads the ID token at send time,
@@ -928,8 +933,9 @@ hook). Group `h2`s carry the breathing dot (Motion).
   chips.
 - The status row ends with `line-vehicle-count` (`{{inService}}/{{total}} in service`,
   `aria-label="N of M vehicles in service"`) whose popover lists the per-status fleet breakdown + a
-  derived `Total`. The title row toggles the lazy expanded panel (`line-status-chart` +
-  `line-status-reports`, both gated on `expanded`).
+  derived `Total`. The title row toggles the lazy expanded panel (`line-status-chart`, `line-week-profile`
+  and `line-status-reports`: the chart and the reports are gated on `expanded`, the typical week is mounted
+  only inside the open panel).
 - **Action set** (identical on the row, same order): **pin** (`line-card-pin`, icon-only
   `hlmBtn size="icon-sm" variant="ghost"`, `aria-pressed`, glyph FILLS when pinned, via
   `PreferencesService`; wrapped in `app-info-popover` `line-card-pin-popover` with `showIcon=false` /
@@ -969,7 +975,8 @@ hook). Group `h2`s carry the breathing dot (Motion).
 - A pinned row adds `app-line-alert-bell` right after the pin (see Alert bell). A pinned row is a My
   lines row, so the bell is on every My lines row and nowhere else; the card does not carry it.
 - Expand toggle `line-row-toggle` (`aria-expanded`) → `line-row-expanded` holding the SAME lazy
-  `app-line-status-chart` + `app-line-status-reports` as the card, gated on the same `expanded` input.
+  `app-line-status-chart`, `app-line-week-profile` and `app-line-status-reports` as the card, gated on the
+  same `expanded` input.
   Opening calls `pushRecentLine()` on the OPEN edge only.
 - **Pro view** adds `line-row-pro` with `line-row-report-window` ("N reports · 15 min window" — a bare
   count is what a pro reader is likeliest to over-read; the window makes it interpretable). Details is
@@ -1104,6 +1111,45 @@ Approved incidents, per line, on the board. `app-line-notices` takes `lineId = i
   `title`/`aria-label` carry the hour range, total and per-status breakdown. All 24 hours labelled on a
   `min-w-[24rem]` strip in an `overflow-x-auto` lane; the skeleton, empty and loaded states share the
   exported `CHART_STATE_MIN_HEIGHT_CLASS` (`min-h-40`) so the card never jumps.
+- **`LineWeekProfileComponent`** (`line-pulse/line-week-profile.component.ts`, `app-line-week-profile`,
+  input `lineId`) — the "Typical week" under today's chart: for ONE line, the status riders most often
+  reported in each hour of each weekday over the last `WEEK_PROFILE_WEEKS` (6) weeks, as a 7-row (Mon to
+  Sun) by 24-column heat strip. Its columns start at `SERVICE_DAY_START_HOUR`, so they run in the same
+  order as the chart above (not pixel-aligned: the chart keeps its own axis gutter and scroll lane). One
+  `graphqlResource` over `LINE_STATUS_WEEK_PROFILE_QUERY` with
+  `{ lineId, weeks: 6, dayStartHour: 3 }`, literals the layout is built from too. It has no `expanded`
+  input: the host mounts it inside its open panel, so a collapsed card never pays for it. It is not
+  re-read on the board's beat, because six weeks of reports do not move while a card is open. Layout,
+  thresholds and strings come from `data/week-profile-display.util.ts` (`buildWeekProfile`, pure); the
+  component only draws. It lives here and not in the line-status sheet: that sheet is the link-less report
+  form, with no history and no day-start of its own.
+  - States, in order: `line-week-profile-skeleton` (no payload for THIS line yet, so a changed `lineId`
+    shows it again and never "no reports": `data()` is dropped on a request change while `isLoading()`
+    stays false); the shared retry banner on a failed read; `line-week-profile-empty` ("No reports in
+    the last 6 weeks", the backend's `[]`); `line-week-profile-sparse` (reports exist but no hour has the
+    minimum, so a sentence replaces 168 grey boxes); the strip.
+  - 🔴 **Below `MIN_REPORTS_PER_WEEK_SLOT` (3) a cell is the muted track and reads "Not enough reports
+    (2 of 3)"** (`data-muted`), whatever its dominant status says: two riders one evening are not a
+    pattern, and grey is the absence of reports, never a good hour. A cell is coloured by its dominant
+    status only (`passengerBarClass`, the hourly widgets' colours). There is no opacity ladder, because
+    the minimum already separates thin from enough and a strength layer would need its own legend.
+  - 🔴 **Rows are SERVICE-day weekdays** (the backend's `weekday`, 0 Monday to 6 Sunday). With the 03:00
+    start a 01:30 Tuesday report is Monday, hour 1, so it sits at the END of Monday's row, where the
+    hourly chart files it. `buildWeekProfile` looks every cell up by (weekday, hour), so neither the order
+    of the backend's slots nor a missing slot can move a column, and it drops a slot outside 0-6 / 0-23.
+  - The strip IS a `<table>` (`line-week-profile-table`): a caption, `th scope` weekday and hour headers
+    with sr-only full names, and text plus a one-sentence `aria-label` in every `td`. Cells are not
+    focusable (168 tab stops are worse than none), so the table is the keyboard and screen-reader route to
+    the numbers. Hover or tap drives the `aria-hidden` `line-week-profile-readout`, and the legend
+    (`line-week-profile-legend`) is `aria-hidden` for the same reason.
+  - 🔴 **The readout sits BELOW the table, never above it.** A mixed hour's sentence wraps to two or
+    three lines at 390px. Drawn above the cells it grew by a line on hover, pushed the table down and
+    left a still pointer over the row above, so it showed that cell (measured in Chromium with the local
+    data: aimed at Thursday 04:00, it read Wednesday). Below the table the legend is what moves. The spec
+    pins the DOM order.
+  - The definition is the `line-status.typical-week` metric, surfaced by an `InfoPopover` beside the title.
+    `WEEK_PROFILE_WEEKS` and `MIN_REPORTS_PER_WEEK_SLOT` are `METHODOLOGY_CONSTANTS` tokens, pinned against
+    the util's constants in `week-profile-display.util.spec.ts`.
 - **`LineStatusReportsComponent`** — keyset-paginated list (`LINE_STATUS_REPORTS_QUERY`), gated on
   `expanded`, re-read on `refreshTick` via the same guard. Row: passenger badge, optional delay, the
   report's `stations` (joined `displayName`s, `report-station`), relative time pinned right
@@ -1188,6 +1234,13 @@ rows.
   - The scale is per WIDGET on purpose: `historyBarHeightPct` scales to the busiest hour in its own
     series (a quiet network must look quiet), while the grid scales to the busiest cell on screen
     (comparing lines is its job).
+- **`week-profile-display.util.ts`** (`buildWeekProfile(slots, dayStartHour?, minReports?)`) turns the
+  backend's typical-week slots into the strip's grid: `days` (7, Monday first) of `cells` (24, from the day
+  start), `columns` (hour label, range and the every-other-hour axis tick), `total` and a `state` of
+  `empty` | `sparse` | `ready`. A cell carries `muted`, `colorClass`, a stand-alone `title` and a header-free
+  `text`. It reuses `reportsPhrase`, `historyBreakdownPhrase` and `passengerBarClass`, so a Crowded hour
+  reads the same here as in today's chart and the heat grid. `notEnoughReportsPhrase` is the one wording
+  of the threshold.
 - **`network-summary.util.ts`** (`summarizeNetwork`) is the one place the board's rule lives — **pure**,
   no Angular, no requests.
   - `LINE_STATUS_SEVERITY_RANK` is a **total order**, deliberately NOT the backend enum's:
@@ -1535,7 +1588,9 @@ hourly and the header says so).
   `status-confidence.official|confirmed|unconfirmed|none` (confidence chip),
   `line-status.queued-report-expiry` (the status sheet's outbox line;
   `REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES` lives in `METHODOLOGY_CONSTANTS`, pinned against the outbox's own
-  constant in `report-outbox.service.spec.ts`), `incidents.line-notices` (the Notice / Planned works
+  constant in `report-outbox.service.spec.ts`), `line-status.typical-week` (the expanded panel's typical
+  week; `WEEK_PROFILE_WEEKS` and `MIN_REPORTS_PER_WEEK_SLOT` live in `METHODOLOGY_CONSTANTS`, section
+  `line-status`, bumped by `REVIEWED_AT_WEEK_PROFILE`), `incidents.line-notices` (the Notice / Planned works
   popover; `PLANNED_WORKS_WINDOW_DAYS` and `LINE_NOTICE_MAX_CHIPS` live in `METHODOLOGY_CONSTANTS`,
   section `episodes`, bumped by `REVIEWED_AT_LINE_NOTICES`). `network.severity-order` is
   reachable only through `/methodology`. When a documented value changes, bump the owning section's
@@ -1580,7 +1635,11 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
 - **Alert bell:** `line-alert-bell` (its `data-state` is the bell's state), `line-alert-bell-popover`,
   `line-alert-prompt` (the dialog inside the sheet), `line-alert-allow`, `line-alert-dismiss`.
 - **Expanded panel:** `line-status-chart`, `line-status-reports`, `line-status-reports-scroll`,
-  `report-station`, `report-time`, `station-strip`, `station-strip-link`, `station-strip-count`.
+  `report-station`, `report-time`, `station-strip`, `station-strip-link`, `station-strip-count`; typical
+  week `line-week-profile`, `line-week-profile-popover` (the PANEL), `line-week-profile-skeleton`,
+  `line-week-profile-empty`, `line-week-profile-sparse`, `line-week-profile-readout`,
+  `line-week-profile-table`, `line-week-profile-legend`, `line-week-row` (`data-weekday`),
+  `line-week-cell` (`data-hour`, `data-muted`).
 - **Sheets:** `line-status-submit-error`, `cancel-line-status-report`, `login-button`,
   `line-status-draft-restored`, `line-status-draft-discard`, `line-status-outbox-note`,
   `line-status-outbox-popover`; chooser
@@ -1758,6 +1817,10 @@ accessible name and `focus-visible` ring from their primitives.
   `outline-none focus-visible:ring-2 focus-visible:ring-ring/50`. 🔴 `heat-popover` and `heat-cell-glow`
   are `pointer-events-none` + `aria-hidden` and must stay **non-focusable** — the grid's accessible
   equivalent is the per-row `role="img"` sentence; the panel is a pointer-only readout.
+- **The typical week is a real table, not a picture of one.** `line-week-profile-table` has a caption,
+  weekday and hour headers and text in each cell, so a screen reader walks it as a table; the colours
+  never carry a status alone (the cell text and `aria-label` name it), and its pointer-only readout and
+  legend are `aria-hidden`. Not focusable per cell, on purpose (see the expanded panel).
 - **Landmarks:** board section `aria-label="Line status"`, feed section `aria-label="Community feed"`;
   the feed's real `<h2>` is an addition, not a replacement (`aria-label` appears only in the landmark
   list).
@@ -1784,6 +1847,13 @@ accessible name and `focus-visible` ring from their primitives.
 
 ## 💡 Potential Feature Opportunities
 
+- **Look past today on the hourly chart.** `lineStatusHistory`, `networkStatusHistory` and
+  `linesStatusHistory` take `daysAgo` (0 to 56, counted in service days; the backend does the date
+  arithmetic, so the variable is a literal integer and stays equal between the server render and the
+  client). The chart and the board widgets send none, so they only ever show the current service day. A
+  "yesterday" or "same weekday last week" step on `app-line-status-chart` is `$daysAgo` on
+  `LINE_STATUS_HISTORY_QUERY` plus a control, and reading it against the typical week above is the
+  question riders ask ("is today worse than usual?").
 - **A per-link deep link.** Feed root rows carry `id="feed-link-<id>"`, but only the duplicate
   indicator's click uses it (`e2e/home.spec.ts` asserts only the `href`); nothing reads a
   `#feed-link-<id>` fragment on arrival. Add a fragment handler that scrolls to and highlights one

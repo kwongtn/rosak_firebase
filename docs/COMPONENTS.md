@@ -374,7 +374,8 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   line read (`Needs attention`, `My lines`, `All lines`) with a five-intent report chooser, a
   draft-first line-status sheet (its draft saved per line, and a report the server cannot take
   queued in the outbox and flushed on reconnect), an alert bell on each pinned row (web push,
-  `core/push/`), 24-hour history strips, and, for `?view=pro`, a
+  `core/push/`), 24-hour history strips and a per-line typical-week heat strip in each expanded
+  line, and, for `?view=pro`, a
   bento dashboard (extra filters, heat grid, CSV export, ongoing incidents, Line HQ, `/` `r` `p`
   shortcuts).
   - Deps: `graphqlResource`/`GraphQLClient`, `AuthService`; route-scoped
@@ -387,7 +388,8 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   - Extend: the `home-*.queries.ts` GraphQL contract files (`pulseLinks.isAutomated` is what makes
     "official" mean anything); `HomeStore` (polling beat, cursor pagination, `userVote` overlay,
     board derivations, `isStale`); pure utils (`passenger-status`, `network-summary`, `status-confidence`,
-    `status-history-display`, `feed-url`, `feed-day-groups`, `feed-filter` — all `*.util.ts`);
+    `status-history-display`, `week-profile-display`, `feed-url`, `feed-day-groups`, `feed-filter` — all
+    `*.util.ts`);
     `LinkSheetService` prefill, `LineStatusSheetService.openFor(id, { presetStatus })`,
     `ReportChooserService` intent seam; `HOME_FEED_COLLAPSE_VARS` on every feed read;
     `ui/motion/tick-up.directive.ts` (`hlmTickUp`, the one number-reveal primitive) + the
