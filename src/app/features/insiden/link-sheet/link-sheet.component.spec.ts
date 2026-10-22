@@ -194,6 +194,32 @@ describe("LinkSheetComponent", () => {
     const form = mountedForm().componentInstance as unknown as FormUnderTest;
     expect(form.selectedLineIds()).toEqual(["L2"]);
   });
+
+  it("words the sheet as a submission in create mode", async () => {
+    sheet.open();
+    await settleOpenedSheet();
+
+    expect(root().querySelector("h2")?.textContent?.trim()).toBe("Submit a link");
+    expect(footerButton("Submit").disabled).toBe(false);
+  });
+
+  it("disables the footer while a submit is in flight and labels the button Saving", async () => {
+    sheet.open();
+    await settleOpenedSheet();
+    const form = mountedForm().componentInstance as LinkFormComponent;
+
+    form.isSubmitting.set(true);
+    fixture.detectChanges();
+
+    expect(footerButton("Saving…").disabled).toBe(true);
+    expect(footerButton("Clear form").disabled).toBe(true);
+
+    form.isSubmitting.set(false);
+    fixture.detectChanges();
+
+    expect(footerButton("Submit").disabled).toBe(false);
+    expect(footerButton("Clear form").disabled).toBe(false);
+  });
 });
 
 /**
