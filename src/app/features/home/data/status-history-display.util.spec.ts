@@ -9,6 +9,7 @@ import {
   HEAT_INTENSITY_STEPS,
   HISTORY_BUCKETS_PER_DAY,
   MIN_HISTORY_BAR_PERCENT,
+  SERVICE_DAY_LABEL,
   SERVICE_DAY_START_HOUR,
   heatCellClass,
   heatIntensityClass,
@@ -194,9 +195,31 @@ describe("status-history-display.util: series totals", () => {
     // What, which window, how much, and when the peak was — the four facts the bars and the
     // tooltips convey between them. A screen reader must not be handed 24 disconnected hours.
     expect(label).toContain("Rider reports for this line");
-    expect(label).toContain("service day 03:00 to 02:00");
     expect(label).toContain("6 reports in 2 of 24 hours");
     expect(label).toContain("Busiest hour 03:00–04:00");
+  });
+
+  it("names the window from the first and last bucket the backend sent", () => {
+    const wholeDay = (firstHourStart: string) =>
+      Array.from({ length: HISTORY_BUCKETS_PER_DAY }, (_, index) => {
+        const start = new Date(firstHourStart).getTime() + index * 3_600_000;
+        return bucket(index === 0 ? 1 : 0, {
+          hourStart: new Date(start).toISOString(),
+          hourEnd: new Date(start + 3_600_000).toISOString(),
+        });
+      });
+
+    expect(historySummaryLabel(wholeDay(HOUR_03), "Network")).toContain(
+      "service day 03:00 to 02:00",
+    );
+    // A day the backend started at 05:00 is labelled as it came, whatever the constant says.
+    expect(historySummaryLabel(wholeDay(HOUR_05), "Network")).toContain(
+      "service day 05:00 to 04:00",
+    );
+  });
+
+  it("derives the caption for a window with no buckets from the pinned constants", () => {
+    expect(SERVICE_DAY_LABEL).toBe("03:00 to 02:00");
   });
 
   it("gives an empty day its own sentence instead of '0 reports in 0 hours'", () => {

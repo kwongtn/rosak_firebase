@@ -26,8 +26,15 @@ export const HISTORY_BUCKETS_PER_DAY = 24;
 /** The hour the community service day starts, and therefore the hour the backend buckets from. */
 export const SERVICE_DAY_START_HOUR = 3;
 
-/** Plain-language name of the window, for a heading or an aria label. */
-export const SERVICE_DAY_LABEL = "03:00 to 02:00";
+/** "03:00": a whole hour of the clock, wrapping past midnight. */
+const clockHour = (hour: number): string => `${String(hour % 24).padStart(2, "0")}:00`;
+
+/**
+ * Plain-language name of the window ("03:00 to 02:00"), for a caption drawn before any bucket
+ * exists. It follows the two constants above, so it cannot disagree with them. Once buckets are in
+ * hand, `historySummaryLabel` names the window from the first and last of them instead.
+ */
+export const SERVICE_DAY_LABEL = `${clockHour(SERVICE_DAY_START_HOUR)} to ${clockHour(SERVICE_DAY_START_HOUR + HISTORY_BUCKETS_PER_DAY - 1)}`;
 
 /** The shortest visible stub for an hour that HAS reports, so a count of 1 is still a bar. */
 export const MIN_HISTORY_BAR_PERCENT = 6;
@@ -187,7 +194,8 @@ export function historySummaryLabel(
   const hours = historyActiveHours(buckets);
   const peak = busiestBucket(buckets);
   const when = peak ? ` Busiest hour ${serviceHourRangeLabel(peak.hourStart, peak.hourEnd)}.` : "";
-  return `${scope} · service day ${SERVICE_DAY_LABEL} · ${reportsPhrase(total)} in ${hours} of ${HISTORY_BUCKETS_PER_DAY} hours.${when}`;
+  const serviceDay = `${serviceHourLabel(buckets[0].hourStart)}:00 to ${serviceHourLabel(buckets[buckets.length - 1].hourStart)}:00`;
+  return `${scope} · service day ${serviceDay} · ${reportsPhrase(total)} in ${hours} of ${HISTORY_BUCKETS_PER_DAY} hours.${when}`;
 }
 
 /**
