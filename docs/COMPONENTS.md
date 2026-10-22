@@ -327,11 +327,11 @@ measured" quotes the file sizes the build prints.
   tab and `/console/insiden/pending`).
 - `@angular/forms` 48 kB and `ng-recaptcha-2` 4 kB: the root ng-recaptcha-2 providers in
   `app.config.ts`, though only `ConsolePage` (`/console/spotting`) injects `ReCaptchaV3Service`.
-- Firebase app, analytics, installations and their helpers, about 57 kB: the `AnalyticsService` app
-  initializer.
+- Firebase app, analytics, installations and their helpers, about 57 kB: `AnalyticsService`, which
+  `App` injects. It touches the SDK only after the first render, but imports it statically.
 - About 21 kB of app code: the services the app initializers start (new-version check, scroll
-  memory, analytics), the route strategies, the toaster, the nav progress bar, theme, network
-  state and the environment.
+  memory), the analytics service, the route strategies, the toaster, the nav progress bar, theme,
+  network state and the environment.
 
 Everything else is lazy, the front page included (`features/home/home.routes.ts`, see
 [home](components/home.md) → Route). So are the shell (the pages import it), `AuthService` with
@@ -380,7 +380,9 @@ walks the static imports from `main.ts` and fails when it reaches `features/`, `
 2. reCAPTCHA: provide `RECAPTCHA_V3_SITE_KEY`, `ReCaptchaV3Service` and `RecaptchaLoaderService`
    on the console's `spotting` route. That moves about 52 kB, `@angular/forms` included (nothing
    else eager imports it).
-3. Analytics: start `AnalyticsService` at idle with its `page_view` queued, about 57 kB.
+3. Analytics: `AnalyticsService` already waits for the first render and `isSupported()`. Load
+   `firebase/analytics` with a dynamic import inside its `start()` and the SDK leaves `main`, about
+   57 kB.
 4. Sentry: the largest, about 200 kB, and the riskiest. Deferring `Sentry.init()` needs a buffer
    that keeps errors thrown before it loads and flushes them into Sentry, an `ErrorHandler` that
    works before and after, and `scripts/check-sentry-lazy.mjs` kept green.

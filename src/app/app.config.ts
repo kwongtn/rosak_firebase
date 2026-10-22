@@ -23,7 +23,6 @@ import * as Sentry from "@sentry/angular";
 import { routes } from "./app.routes";
 import { provideClientHydration, withHttpTransferCacheOptions } from "@angular/platform-browser";
 import { environment } from "../environments/environment";
-import { AnalyticsService } from "./core/analytics/analytics.service";
 import { NewVersionService } from "./core/version/new-version.service";
 import { isChunkLoadError } from "./core/version/chunk-load-error.util";
 import { HoverPreloadStrategy } from "./core/routing/hover-preload.strategy";
@@ -126,12 +125,6 @@ export const appConfig: ApplicationConfig = {
     // it once at startup is all that's needed to activate it.
     provideAppInitializer(() => {
       inject(Sentry.TraceService);
-    }),
-    // Same instantiate-once-for-its-side-effects shape as TraceService above — AnalyticsService's
-    // constructor is what actually subscribes to Router events and turns them into `page_view`
-    // calls (see its own doc comment).
-    provideAppInitializer(() => {
-      inject(AnalyticsService);
     }),
     // Same shape again for NewVersionService: its constructor starts the /version.json poll AND
     // registers the stale-chunk failure listeners, and anchoring it here (not relying on the nav
