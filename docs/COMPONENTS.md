@@ -80,6 +80,29 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   `NewVersionService`. `PollingSource` (`core/polling/`) reads `navigator.onLine` itself, the way it
   reads `document.hidden`: offline pauses the beat, and the `online` event refreshes at once (not
   while hidden, never for a "Never" beat).
+- `core/offline/`: `ReportOutboxService` (root, lazy), the outbox for line status reports the
+  server could not take (audit F211). Storage is `localStorage` key `rosak:report-outbox:v1`, because
+  it must survive a killed tab and holds at most one small entry per line; IndexedDB was not used,
+  since `core/upload/upload-queue-db.ts` is hard-wired to one store of photo records. `enqueue()`
+  keeps one entry per line (latest wins) and records `queuedAt` and the Firebase uid. `flush(send)`
+  runs only online, one at a time, inside the Web Lock `rosak:report-outbox` where the browser has
+  one (so two tabs that reconnect together send a report once), and re-reads storage first. It awaits
+  `AuthService.whenReady`, then drops entries older than `REPORT_OUTBOX_MAX_AGE_MINUTES` (15, the
+  backend's status window, because the backend stamps a report on arrival and takes no client time),
+  with a toast to the account that queued them. For the signed-in account only, it then sends the
+  rest oldest first through the caller's sender. A `GraphQLRequestError` or a payload that is not
+  `ok` drops the entry and toasts why (the server's message for the former). A transport failure
+  keeps the entry and everything after it for the next try, and is not rethrown: the submit that
+  queued it already reached Sentry. An empty outbox returns before the lock, so the home route can
+  flush on every board beat for the price of one storage read.
+  `core/` cannot import the feature's mutation, so the service registers no trigger of its own. The
+  home route registers one (`features/home/data/report-outbox-flush.ts`, see
+  [home](components/home.md) → Line-status sheet). `app.routes.spec.ts` keeps `core/offline/` out of
+  the initial bundle.
+- `core/util/web-storage.util.ts`: `readStorageItem` / `writeStorageItem` / `removeStorageItem` over
+  `"local" | "session"`, the try/catch wrappers `PreferencesService` keeps for itself (a failed read
+  is `null`, a failed write or removal is dropped). Used by the outbox and by the two report drafts
+  (home's line-status sheet, spotting's report form), which live in `sessionStorage`.
 - `core/version/`: `NewVersionService` polls `/version.json` every 10 minutes while online
   (`cache: "no-store"` plus an `ngsw-bypass` header, so neither the HTTP cache nor the service worker
   answers it) and prompts for a reload on a failed same-origin chunk only.
@@ -183,11 +206,11 @@ measured" quotes the file sizes the build prints.
 
 Everything else is lazy, the front page included (`features/home/home.routes.ts`, see
 [home](components/home.md) → Route). So are the shell (the pages import it), `AuthService` with
-Firebase Auth (a shared chunk of about 91 kB), `GraphQLClient`, `PreferencesService` and the
-methodology registry. A static import of any of them from `main.ts`, `app.config.ts`,
-`app.routes.ts` or anything they import moves it into `main`. `app.routes.spec.ts` walks the static
-imports from `main.ts` and fails when it reaches `features/`, `shell/` or
-`core/{auth,graphql,preferences,methodology}/`.
+Firebase Auth (a shared chunk of about 91 kB), `GraphQLClient`, `PreferencesService`, the
+methodology registry and the report outbox. A static import of any of them from `main.ts`,
+`app.config.ts`, `app.routes.ts` or anything they import moves it into `main`. `app.routes.spec.ts`
+walks the static imports from `main.ts` and fails when it reaches `features/`, `shell/` or
+`core/{auth,graphql,preferences,methodology,offline}/`.
 
 **Last measured** (`npx ng build`, 2026-10-22, after the home route's providers moved out of
 `app.routes.ts`):
@@ -228,11 +251,15 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   Last Week rolling link feed (login-gated submit, duplicate detection, votes) under a hero (stat
   tiles, intent CTAs, refresh donut) over the **network board** — a three-group partition of the
   line read (`Needs attention`, `My lines`, `All lines`) with a five-intent report chooser, a
-  draft-first line-status sheet, 24-hour history strips, and, for `?view=pro`, a bento dashboard
-  (extra filters, heat grid, CSV export, ongoing incidents, Line HQ, `/` `r` `p` shortcuts).
+  draft-first line-status sheet (its draft saved per line, and a report the server cannot take
+  queued in the outbox and flushed on reconnect), 24-hour history strips, and, for `?view=pro`, a
+  bento dashboard (extra filters, heat grid, CSV export, ongoing incidents, Line HQ, `/` `r` `p`
+  shortcuts).
   - Deps: `graphqlResource`/`GraphQLClient`, `AuthService`; route-scoped
-    `HomeStore`/`HomeViewModeService` (the one writer of `?view=`)/`LineStatusSheetService`; root
-    `ReportChooserService`/`IncidentSheetService`/`PreferencesService`; `core/url-state`,
+    `HomeStore`/`HomeViewModeService` (the one writer of `?view=`)/`LineStatusSheetService` and the
+    outbox flush (`provideReportOutboxFlush()`); root
+    `ReportChooserService`/`IncidentSheetService`/`PreferencesService`/`ReportOutboxService`/
+    `OnlineService`; `core/url-state`,
     `core/export/csv.util.ts`; insiden's `AssetMultiSelectComponent`, `VoteButtonComponent`,
     `app-link-thread`; spotting's `humanizeSince`.
   - Extend: the `home-*.queries.ts` GraphQL contract files (`pulseLinks.isAutomated` is what makes
@@ -386,9 +413,10 @@ Synthesized from each feature doc's `Potential Feature Opportunities`. Per-featu
 3. **User preferences / persistence.** `core/preferences/preferences.service.ts`
    (`PreferencesService`, localStorage key `rosak:preferences:v1`) holds home's pinned lines, view
    mode, density, etc.; home is the only writer, and insiden's "My lines" filter reads the
-   pinned lines. Still missing: tracker saved layer presets,
-   spotting report-form drafts, profile settings. The only other persistence is the upload queue's
-   IndexedDB.
+   pinned lines. The report drafts (home's line-status sheet per line, spotting's report form in one
+   slot) live in `sessionStorage`, and the status-report outbox (`core/offline/`) in `localStorage`,
+   all through `core/util/web-storage.util.ts`. Still missing: tracker saved layer presets, profile
+   settings. The only other persistence is the upload queue's IndexedDB.
 4. **"Select rows, then act" bulk actions (console + profile).** **Status: split (2026-10-01)** —
    there are two shared implementations, not the one extraction originally asked for:
    `core/composables/use-bulk-actions.ts` (console's spotting queue: always-on selection,

@@ -45,25 +45,30 @@
   - `feed/` — `link-submit-box.component.ts`, `feed-url.util.ts` (`normalizeFeedUrl`). Feed rows render
     through the shared insiden `app-link-thread` (recursive wrapper around `app-link-card`); there is no
     home-local card.
-  - `line-status/line-status-sheet.component.ts`; `report/` — `report-chooser.component.ts`,
+  - `line-status/line-status-sheet.component.ts` + `line-status-draft.util.ts` (the saved draft's
+    (de)serialisers); `report/` — `report-chooser.component.ts`,
     `report-chooser.service.ts`, `report-chooser-order.util.ts`;
     `refresh-control/home-refresh-control.component.ts`.
   - `data/` — GraphQL modules `home.queries.ts` (shared schema enums), `home-board.queries.ts`,
     `home-feed.queries.ts` + `home-feed-items.ts`, `home-history.queries.ts`,
     `home-incidents.queries.ts`, `home-feed-mutations.queries.ts`; `home.store.ts`;
-    `home-view-mode.service.ts`; `line-status-sheet.service.ts`; pure utils `network-summary`,
-    `board-lines`, `status-confidence`, `status-history-display`, `status-info`, `line-status-metrics`,
-    `passenger-status`, `home-feed`, `feed-filter`, `feed-day-groups`, `line-family` (each `*.util.ts`).
+    `home-view-mode.service.ts`; `line-status-sheet.service.ts`; `submit-line-status-report.ts` (the
+    one send path for a status report); `report-outbox-flush.ts` (`provideReportOutboxFlush()`);
+    pure utils `network-summary`, `board-lines`, `status-confidence`, `status-history-display`,
+    `status-info`, `line-status-metrics`, `passenger-status`, `home-feed`, `feed-filter`,
+    `feed-day-groups`, `line-family` (each `*.util.ts`).
     Specs sit beside each file.
 
 ## 🔌 Interface & Data Flow
 
 - **Route:** `""` in `src/app/app.routes.ts` (`pathMatch: "full"`, the title) lazy-loads
   `home.routes.ts`, whose one `""` child is `component: HomePage` with
-  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService]`. The page, the store and its
-  queries are ONE lazy chunk, so nothing under `features/home/` is in the initial bundle. A static
-  import of any of them from the initial graph (`main.ts`, `app.config.ts`, `app.routes.ts` and what
-  they import) pulls the store, the methodology registry and Firebase Auth into `main`.
+  `providers: [HomeStore, HomeViewModeService, LineStatusSheetService, provideReportOutboxFlush()]`.
+  The page, the store and its queries are ONE lazy chunk, so nothing under `features/home/` is in the
+  initial bundle. A static import of any of them from the initial graph (`main.ts`, `app.config.ts`,
+  `app.routes.ts` and what they import) pulls the store, the methodology registry and Firebase Auth
+  into `main`. The same holds for `core/offline/` (the status-report outbox), which the guard in
+  `app.routes.spec.ts` also covers.
   `pathMatch: "full"` is load-bearing: an empty path prefixes every URL, so without it the router
   fetches the home chunk on every first navigation. `src/app/app.routes.spec.ts` pins both.
   - 🔴 **The route injector — and so `HomeStore` — OUTLIVES a visit.** The router retains it while
@@ -139,7 +144,10 @@
     (`networkStatusHistory(dayStartHour)`) and `LINES_STATUS_HISTORY_QUERY`
     (`linesStatusHistory(lineIds)`) back the sparkline, row tally, heat grid and Pro ranking (same
     `LineStatusHourBucket` fields, pinned in the spec); `SUBMIT_LINE_STATUS_REPORT_MUTATION`
-    (`submitLineStatusReport(input: LineStatusReportInput!)`).
+    (`submitLineStatusReport(input: LineStatusReportInput!)`), sent only through
+    `submitLineStatusReport(graphql, auth, input)` (`data/submit-line-status-report.ts`), the one path
+    the sheet's Submit and the outbox flush share. It reads the ID token at send time; the mutation
+    checks `IsLoggedIn` only (no reCAPTCHA).
   - `FEED_QUERY` (`home-feed.queries.ts`): the `publicSocialMediaLinks` connection. Args: `first`,
     `after`, `status`, `currentServiceDayOnly`, `lastWeekOnly`, `alignPageToDay`, `collapseThreads`,
     `lineId`. Returns `edges { node, cursor }`, `pageInfo { hasNextPage, endCursor }` and a
@@ -210,6 +218,9 @@
     once whatever the deadline (not while hidden, never for "Never"). The countdown freezes meanwhile.
   - `PreferencesService` (`core/preferences/`), `query-param.util` (`core/url-state/`), `csv.util`
     (`core/export/`) — see Internal State.
+  - `ReportOutboxService` (`core/offline/`), `OnlineService` (`core/network/`) and the best-effort
+    storage helpers `core/util/web-storage.util.ts` — the line-status sheet's saved draft and outbox
+    (see Line-status sheet).
   - `AssetMultiSelectComponent` (`features/insiden/asset-multi-select/`) — station picker (status sheet)
     and line picker (advanced link form). `VoteButtonComponent` (`features/insiden/vote-button/`) —
     `targetType="link"`, `VoteValue ∈ {-1, 0, 1}`, optimistic with rollback. `humanizeSince`
@@ -553,8 +564,8 @@ typed URL as one-shot prefill (its form adds title + asset tags). Local state: `
 
 Local signals: `status` (`PassengerStatus | null`), `delayMinutes` (string, parsed on submit), `notes`,
 `selectedStationIds`, `isSubmitting`, `submitError` (inline `line-status-submit-error`, `role="alert"`;
-set on `ok: false`, a `GraphQLRequestError` (server message mirrored), a transport failure or a
-submit-time guard; only a truthy `ok` closes and emits). `cancel-line-status-report` closes without
+set on `ok: false`, a `GraphQLRequestError` (server message mirrored) or a submit-time guard; only a
+truthy `ok` closes and emits), `draftRestored`. `cancel-line-status-report` closes without
 submitting. `lineId` is computed from the input or the service. `stationsResource` is a lazy
 `graphqlResource`, inert until the sheet is open on a known line (`STATION_LINES_QUERY`, reused from
 spotting).
@@ -563,11 +574,44 @@ spotting).
   need to log in before submitting, but feel free to fill in the details first." + `login-button`;
   wording identical to the spotting form's). The account is asked for at exactly ONE place — `submit()`
   — which writes the same message inline (`role="alert"`, above the footer, so a missed toast is
-  survivable), toasts, and returns. The draft is discarded on exactly ONE edge (open→closed, `clear()`),
-  so the login popup cannot cost the reader their typing; `login-button` opens the popup without
-  touching a draft signal.
-- ONE `effect` handles both edges: **open** consumes `presetStatus` (one-shot), **close** clears — same
-  effect so the seed and the reset cannot race against the same `_wasOpen` latch.
+  survivable), toasts, and returns. The in-memory draft is reset on exactly ONE edge (open→closed,
+  `clear()`), so the login popup cannot cost the reader their typing; `login-button` opens the popup
+  without touching a draft signal. The saved copy survives that edge (below).
+- ONE `effect` handles both edges: **open** restores the saved draft, then consumes `presetStatus`
+  (one-shot) over it, **close** clears — same effect so the seed and the reset cannot race against the
+  same `_wasOpen` latch.
+- **Saved draft (per line, `sessionStorage`).** A second effect, browser-only, saves
+  `{ status, delayMinutes, notes, stationIds }` under `lineStatusDraftKey(lineId)`
+  (`rosak:line-status-draft:v1:<lineId>`, `line-status-draft.util.ts`) while the sheet is open. It
+  is gated on `_draftLineId`/`_draftBaseline`, which only the open edge sets, so it can never write
+  over a saved draft before the open edge has read it. A blank draft, or an untouched one that was not
+  restored (a chooser preset alone), is removed instead of saved. The close edge resets memory only,
+  so an accidental close or a reload loses nothing: the next open on THAT line restores it and shows
+  `line-status-draft-restored` ("Draft restored." + `line-status-draft-discard`). The line sits BELOW
+  the status chips because the sheet's focus trap takes the first control on open. Discard moves focus
+  to the first chip before the line disappears, then forgets the saved draft; a sent or queued
+  submit forgets it too. `parseLineStatusDraft` returns `null` for unknown, malformed or blank storage
+  and never throws.
+- 🔴 **Outbox: a report the server cannot take is queued, not lost.** Offline at Submit
+  (`OnlineService.isOnline()` false: nothing is tried), or a failure that is NOT a
+  `GraphQLRequestError` (the request never completed: lie-fi, a 5xx, a token refresh that could not
+  reach Firebase), hands `{ lineId, status, stationIds, delayMinutes, notes }` to
+  `ReportOutboxService.enqueue()`, toasts **"Saved" / "It will send when you're back online."**, records
+  the line like a sent report, forgets the saved draft and closes the sheet without emitting
+  `submitted`. The transport error is still rethrown to Sentry. A `GraphQLRequestError` or `ok: false`
+  keeps the old inline path (the server answered).
+- `line-status-outbox-note` says what Submit will do while offline, or that this line already has a
+  report waiting (`ReportOutboxService.hasQueued`, this account only). Its `app-info-popover`
+  (`line-status-outbox-popover`) carries `metricTooltip("line-status.queued-report-expiry")`.
+- **Flush trigger:** `provideReportOutboxFlush()` (`data/report-outbox-flush.ts`, in the route's
+  providers) runs an effect in the route injector, browser-only: on its first run (the route's start),
+  when `OnlineService` comes back online, and on every board beat (`HomeStore.linesRefreshTick`),
+  because in a tunnel `navigator.onLine` stays `true` and no `online` event comes. It calls
+  `outbox.flush(sendQueuedLineStatusReport)` and, when anything was sent, `HomeStore.reloadAll()`.
+  Registered on the home route, not app-wide, so the outbox and Firebase Auth stay lazy; a report
+  queued here therefore waits for the next visit to `/` after a cold start elsewhere, or expires. The
+  flush rules themselves (expiry, server errors, one account) are the outbox's: see
+  `docs/COMPONENTS.md` → Cross-cutting core → `core/offline/`.
 - On success the sheet records `PreferencesService.setLastReportedLine(lineId)` +
   `pushRecentLine(lineId)` (the chooser orders pinned → recent → severity, so "the line I just reported"
   is at hand next time).
@@ -1270,6 +1314,11 @@ hourly and the header says so).
   of `hasError` unless the data is page-critical.
 - **`LineStatusSheetService`** — any card or page opens the report sheet with `openFor(lineId)`, or
   `openFor(lineId, { presetStatus })` when it already knows the condition, without wiring the sheet.
+- **`submitLineStatusReport()` + `ReportOutboxService`** — a new way to file a status report sends
+  through `submitLineStatusReport` and, on a transport failure, calls `outbox.enqueue()`; the route's
+  `provideReportOutboxFlush()` already sends what is queued. The outbox is status-report shaped
+  (`QueuedLineStatusReport`); another report kind needs its own entry type and sender, not a
+  generalised queue.
 - **`ReportChooserService` + `report-chooser-order.util.ts`** — the submission-intent seam (see Report
   chooser).
 - **`passenger-status.util.ts`** tables are the label/variant seam: a new `PassengerStatus` is one line
@@ -1307,7 +1356,10 @@ hourly and the header says so).
   filter), `network.report-ranking` (ranking; `REPORT_RANKING_TOP_LINES` lives in
   `METHODOLOGY_CONSTANTS`), `line-status.last-report-hour` (Pro table column),
   `line-status.operator-family` (family chips), `line-pulse.vehicle-count` (vehicle chips),
-  `status-confidence.official|confirmed|unconfirmed|none` (confidence chip). `network.severity-order` is
+  `status-confidence.official|confirmed|unconfirmed|none` (confidence chip),
+  `line-status.queued-report-expiry` (the status sheet's outbox line;
+  `REPORT_OUTBOX_MAX_AGE_MINUTES` lives in `METHODOLOGY_CONSTANTS`, pinned against the outbox's own
+  constant in `report-outbox.service.spec.ts`). `network.severity-order` is
   reachable only through `/methodology`. When a documented value changes, bump the owning section's
   `lastReviewed` (history widgets: `REVIEWED_AT_HISTORY_WIDGETS` in `methodology.content.ts`; see
   `methodology.md`).
@@ -1349,7 +1401,9 @@ A `data-testid` on an `InfoPopover` is its **PANEL**, not the trigger — reach 
   `line-row-report`, `line-row-toggle`, `line-row-expanded`, `line-row-pro`, `line-row-report-window`.
 - **Expanded panel:** `line-status-chart`, `line-status-reports`, `line-status-reports-scroll`,
   `report-station`, `report-time`, `station-strip`, `station-strip-count`.
-- **Sheets:** `line-status-submit-error`, `cancel-line-status-report`, `login-button`; chooser
+- **Sheets:** `line-status-submit-error`, `cancel-line-status-report`, `login-button`,
+  `line-status-draft-restored`, `line-status-draft-discard`, `line-status-outbox-note`,
+  `line-status-outbox-popover`; chooser
   `chooser-tile-delay|stopped|spot|link|incident`, `chooser-line-picker`, `chooser-line-filter`,
   `chooser-line-list`, `chooser-line-<id>`, `chooser-line-hint`, `chooser-no-match`,
   `chooser-empty-lines`, `chooser-report-last`.
