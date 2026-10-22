@@ -47,7 +47,10 @@ integrations — most features use one; several straddle two:
 button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-external-link-icon`),
 `src/app/domain-ui/*` (status badges, activity heatmap — thin wrappers over the shared enums in
 `core/graphql/types.ts`), and `src/app/shell/*` (page chrome: `AppNavComponent`,
-`AppFooterComponent`, account panel, compact nav, offline strip).
+`AppFooterComponent`, account panel, compact nav, offline strip). `HlmSheet` stays mounted once it has
+opened. While it is closed its focus trap is off and its panel is `inert`, so nothing in it can take
+focus or reach a screen reader, and a host whose control had focus moves focus back to its opener
+itself.
 
 **Cross-cutting core** (`src/app/core/*`, no per-feature doc):
 
@@ -120,16 +123,22 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   wrappers; nothing is stored while no line has alerts, so "a token is stored" means "alerts are
   on"). `availability()` is, most blocking first, `unconfigured` (no VAPID key), `install` (a tab
   on iOS or iPadOS: `navigator.standalone === false` with touch points), `unsupported`, `blocked`
-  (permission denied), `signed-out` or `ready`. `subscribe(line)` calls
-  `Notification.requestPermission()` (unless already granted) before its first `await`, because the
-  prompt needs the tap's user activation, then `getToken(messaging, { vapidKey })` and
-  `registerPushToken(token, lineIds)` with the FULL list (the backend replaces it).
+  (permission denied), `signed-out` or `ready`. The permission is read again on every tap
+  (`syncPermission()`, which the bell and `subscribe` call), because the rider can change it in the
+  site settings at any time. `subscribe(line)` calls `Notification.requestPermission()` (unless
+  already granted) before its first `await`, because the prompt needs the tap's user activation,
+  then `getToken(messaging, { vapidKey })` and `registerPushToken(token, lineIds)` with the FULL list
+  (the backend replaces it).
   `unsubscribe(lineId)` re-registers the rest, or calls `unregisterPushToken(token)` once none is
   left, and `turnOff()` unregisters. State changes only after the backend said `ok`. A failure is
-  toasted and reported, never thrown. Firebase Messaging is a further dynamic `import()` on first
-  use, and `firebaseApp()` reuses the app that Auth created. A visible tab gets no system
+  toasted and reported, never thrown. A `storage` event for the key from another tab replaces the
+  in-memory state, so a sign-out there (or a bell tapped there) is this tab's state too. Firebase
+  Messaging is a further dynamic `import()` on first use, loaded once for the token and the
+  listener, and `firebaseApp()` reuses the app that Auth created. A visible tab gets no system
   notification, so `onMessage` shows an info toast with the title, the body and an "Open" link
-  (`ToastService.info(title, description, link)`).
+  (`ToastService.info(title, description, link)`). The link opens on this origin:
+  `linkOnOrigin(link, origin)` keeps the path, query and fragment, because the backend's
+  `FRONTEND_BASE_URL` need not be the site the rider is on (a staging or preview origin).
   - `push-loader.ts`: `FCM_VAPID_KEY` (token, from `environment.fcm.vapidKey`) and
     `injectPushService()`, the only way a control reaches the service: a signal that is `null` until
     a dynamic import lands after the first render and `AuthService.whenReady` has resolved (so a
@@ -138,12 +147,17 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
   - `AuthService` drives two hooks through its own dynamic import, and only when a token is stored:
     `resume()` after a sign-in reads `pushSubscription(token)` once (the backend's lines win, and
     `null`, an unknown token or another account's, clears them; offline or on a failed read the
-    stored lines stand) and, with permission granted, starts the foreground listener. `forget()`
-    runs before `signOut`, because `unregisterPushToken` needs the session that registered the
-    token. It clears the stored state at once and sends the unregister without waiting for it.
-  - The backend sends one notification per newly approved MAJOR incident per subscribed line, at
-    most once per line in 30 minutes, with `webpush.fcm_options.link` set to `/insiden/<start date>`
-    (`rosak_backend/docs/components/incident.md` → Web push). That rule is published as the
+    stored lines stand). With permission granted it starts the foreground listener and, when the
+    backend still has lines, asks the SDK for the current token: a token FCM replaced is registered
+    with the same lines, quietly. `forget()` runs before `signOut`, because `unregisterPushToken`
+    needs the session that registered the token. It clears the stored state at once and awaits
+    nothing: it asks for the ID token while that account is signed in and sends the unregister
+    when the token arrives, so an expired token's refresh on a dead link cannot hold the sign-out.
+  - The backend sends one notification per device for a newly approved MAJOR incident on any line
+    that device follows (one, however many of the incident's lines it follows), and at most one
+    push per line every 30 minutes, with `webpush.fcm_options.link` set to
+    `{FRONTEND_BASE_URL}/insiden/<start date>` (`rosak_backend/docs/components/incident.md` → Web
+    push). That rule is published as the
     `incidents.push-alerts` metric. `app.routes.spec.ts` keeps `core/push/` out of the initial
     bundle.
 - `core/util/web-storage.util.ts`: `readStorageItem` / `writeStorageItem` / `removeStorageItem` over
@@ -209,7 +223,8 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     `www.gstatic.com` through `importScripts` (the one external script the app loads this way) and
     calls `firebase.messaging()`, which shows a notification that arrives while no tab is visible.
     Its own `notificationclick` handler runs before the SDK's: it focuses a tab already on the
-    alert's same-origin link, or opens the link. The SDK registers the file on the first
+    alert's page, or opens it, always on this origin (the link's path, query and fragment, built
+    with URL setters so a `//host` path stays a path). The SDK registers the file on the first
     `getToken()` at its default scope `/firebase-cloud-messaging-push-scope`, so the worker
     controls no page and never meets `ngsw-worker.js` at `/`. `ng serve`, which has no ngsw, serves
     it too.

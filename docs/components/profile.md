@@ -273,7 +273,8 @@ Directory map:
   - **It is this browser's, not the account's.** The lines come from the FCM token this browser stored
     (`rosak:push:v1`), restored from `pushSubscription(token)` when the session starts (`AuthService` →
     `PushService.resume()`). Another device has its own token and its own lines, and the card does not
-    list them.
+    list them. A change made in another tab of this browser (a sign-out there, a bell tapped there)
+    shows here at once, because `PushService` takes the `storage` event.
   - **It appears once the service lands.** `injectPushService()` loads `PushService` after the first
     render. The card is absent until then and for good in a build without a VAPID key. The host is
     `display: contents`, like the Fleet progress card's, so the absent card leaves no gap.
@@ -282,7 +283,8 @@ Directory map:
     all alerts" (`profile-alerts-off`) that calls `turnOff()`. Without lines: `profile-alerts-empty`
     points at the front page, where a pinned row's bell turns a line on. When this browser cannot take
     new alerts, `profile-alerts-note` says why (blocked, an iOS tab, no web push); the lines it has stay
-    listed and removable.
+    listed and removable. The note reads the permission as `PushService` last read it (at start-up and
+    on each bell tap), so a site unblocked in the settings drops the note after a reload or a bell tap.
   - 🔴 **A removed chip takes its focused button with it.** After the render that drops it, focus that
     fell to `body` moves to the card's heading (`tabindex="-1"`). Busy controls use `aria-disabled`,
     never `disabled`, for the same reason, and the handlers return early while `busy()`.

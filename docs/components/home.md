@@ -1021,18 +1021,26 @@ render, so neither the service nor Firebase Messaging is in the home chunk.
   Screen to get alerts", "Notifications are blocked in your browser settings", "Sign in to get
   alerts", ...) and its body is `metricTooltip("incidents.push-alerts")`.
 - 🔴 **Disabled is `aria-disabled`, never `disabled`.** A `disabled` button swallows the tap, and the
-  tooltip that says why would never open. `onBell()` returns early in those states and while
-  `busy()`. The `aria-label` is "Alerts for <name>", plus ": <reason>" when alerts cannot work here;
+  tooltip that says why would never open. `onBell()` first calls `push.syncPermission()`, because the
+  rider can change the site's notification setting at any time (a `blocked` bell that is now allowed
+  acts on that tap), then returns early in the inert states and while `busy()`. The `aria-label` is
+  "Alerts for <name>", plus ": <reason>" when alerts cannot work here;
   signed out it is "Sign in to get alerts for <name>". `aria-pressed` is set for `on` and `off` only,
   and the glyph fills while on, like the pin. The unavailable states draw `lucideBellOff`.
 - **Flow.** Signed out, a tap calls `AuthService.login()` (looked up through the injector at tap time,
   so a build without a key creates no `AuthService` for the bell). With permission not yet answered
-  (`needsPermission()`), the first tap opens the soft pre-prompt: an `hlm-sheet side="bottom"` holding a
-  `role="dialog"` "Get an alert when <name> has a major incident?" with Not now and Allow. Allow closes
-  the sheet and calls `subscribe({ id, code })` in the same click, so the browser's prompt still has
-  the tap's user activation. Once permission is granted a tap toggles: `subscribe` or
+  (`needsPermission()`), the first tap opens the soft pre-prompt: an `hlm-sheet side="bottom"` holding
+  "Get an alert when <name> has a major incident?" with Not now and Allow. It is a `role="dialog"`
+  with `aria-modal` only while open, because the closed sheet stays mounted after every pinned row.
+  Allow closes the sheet and calls `subscribe({ id, code })` in the same click, so the browser's
+  prompt still has the tap's user activation. Once permission is granted a tap toggles: `subscribe` or
   `unsubscribe(id)`. Focus goes back to the bell whenever the sheet closes (Allow, Not now, backdrop,
-  Escape), because the sheet stays mounted and hidden.
+  Escape), because the sheet stays mounted (its closed panel is `inert`, which would drop focus to
+  `body`).
+- **On touch, a tap that acts also opens the tooltip,** as the pin's does: `InfoPopover`'s
+  `triggerTpl` wrapper toggles on every tap without hover. The heading follows the state once the
+  change lands (while `busy()` it still names the state before the tap), and the next tap anywhere
+  else closes it, so a sheet button or its backdrop closes it with the sheet.
 - The host is `inline-flex` with no gap, so the sheet (fixed) takes no room in the row's action group.
 
 ### Incident notices (`line-pulse/line-notices.component.ts`, `data/incident-notices.util.ts`)
