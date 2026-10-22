@@ -71,6 +71,8 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
         if: env.HAS_WIF_SECRETS == 'true'
 
+      # Pinned exactly (a week-old release, not the newest). Dependabot does not read `npx pkg@x`
+      # in a run line, so bump it by hand.
       - name: Deploy Functions
         if: env.HAS_WIF_SECRETS == 'true'
-        run: npx firebase-tools@15.34.1 deploy --only functions --project rosak-7223b --force --non-interactive
+        run: npx firebase-tools@15.34.0 deploy --only functions --project rosak-7223b --force --non-interactive
