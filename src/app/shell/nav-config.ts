@@ -1,19 +1,19 @@
 /** A single console sub-section link — shared between `<app-nav>` (hover dropdown, collapsed
- * module-menu dropdown, mobile sheet) and `/tracker`'s own compact nav pill, so both surfaces
- * render the same Console sub-links from one source instead of drifting apart. */
+ * module-menu dropdown, mobile sheet), `/tracker`'s own compact nav pill and the console pages'
+ * own `<app-console-nav>` switcher, so every surface renders the same Console sub-links from one
+ * source instead of drifting apart. */
 export interface ConsoleLink {
   path: string;
   label: string;
   /** Only the spotting queue's path is exact — the bare /console redirects to
-   * /console/spotting, so a link to /console would never highlight on the canonical URL.
-   * See console-nav.component.ts, which this mirrors. */
+   * /console/spotting, so a link to /console would never highlight on the canonical URL. */
   exact: boolean;
 }
 
 /** Single source of truth for the console's sub-sections — read by app-nav's hover dropdown,
- * its expanded inline nested menu, its mobile sheet's sub-group, and tracker-shell's own
- * compact-nav dropdown/mobile list, so adding a new console section here makes it show up
- * everywhere automatically. */
+ * its expanded inline nested menu, its mobile sheet's sub-group, tracker-shell's own
+ * compact-nav dropdown/mobile list and the console pages' `<app-console-nav>`, so adding a new
+ * console section here makes it show up everywhere automatically. */
 export const CONSOLE_LINKS: ConsoleLink[] = [
   { path: "/console/spotting", label: "Spotting Queue", exact: true },
   { path: "/console/insiden/pending", label: "Incident Approval", exact: false },

@@ -27,7 +27,7 @@
   - `pathMatch: "full"` on the bare redirect is **mandatory**, or it would also swallow `/console/insiden/*` and `/console/links`.
   - Angular rejects `canActivate` on a redirect route. Both redirect targets are guarded, so `/console` and `/console/insiden/links` are guarded transitively.
   - `adminOnlyGuard` (`core/auth/admin-only.guard.ts`) awaits `auth.whenReady` and redirects non-admins to `/spotting`. It is **not** a stub — do not "re-fix" it (see AGENTS.md).
-  - Nav: `shell/nav-config.ts::CONSOLE_LINKS` and the hardcoded duplicate `console-nav.component.ts::ITEMS` both point at `/console/links` (never the legacy path) so `RouterLinkActive` follows the real URL. Keep both in sync.
+  - Nav: `shell/nav-config.ts::CONSOLE_LINKS` is the one list of console sections (`console-nav.component.ts` renders it; `<app-nav>` and `<app-compact-nav>` read it too). It points at `/console/links` (never the legacy path) so `RouterLinkActive` follows the real URL, and the switcher marks the active pill with `aria-current="page"`.
 
 - **Spotting page state** (`ConsolePage`; no `@Input`s or route params, all `signal`/`computed`):
   - `filterForm: Signal<FilterFormModel>` — draft filter: status[], spottingType[], created/spotted date ranges, four tri-state booleans (`isVehicleStatusDifferent`, `isAnonymous`, `isRead`, `hasNotes`), `freeSearch`. Default: `isRead: false`, everything else empty/`undefined`.

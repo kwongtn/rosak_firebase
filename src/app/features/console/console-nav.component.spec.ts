@@ -3,6 +3,7 @@ import { TestBed } from "@angular/core/testing";
 import { Router, RouterOutlet, provideRouter } from "@angular/router";
 import { describe, expect, it } from "vitest";
 
+import { CONSOLE_LINKS } from "../../shell/nav-config";
 import { ConsoleNavComponent } from "./console-nav.component";
 
 const ACTIVE_CLASS = "bg-primary";
@@ -44,6 +45,23 @@ describe("ConsoleNavComponent", () => {
     const el = await renderAt("/console/spotting");
     const labels = [...el.querySelectorAll("nav a")].map((a) => a.textContent?.trim());
     expect(labels).toEqual(["Spotting Queue", "Incident Approval", "Social Media Links"]);
+  });
+
+  it("renders exactly the shared CONSOLE_LINKS, in order", async () => {
+    const el = await renderAt("/console/spotting");
+    const rendered = [...el.querySelectorAll("nav a")].map((a) => [
+      a.getAttribute("href"),
+      a.textContent?.trim(),
+    ]);
+    expect(rendered).toEqual(CONSOLE_LINKS.map((l) => [l.path, l.label]));
+  });
+
+  it("marks only the active section with aria-current=page", async () => {
+    const el = await renderAt("/console/insiden/pending");
+    const current = [...el.querySelectorAll("nav a[aria-current='page']")].map((a) =>
+      a.textContent?.trim(),
+    );
+    expect(current).toEqual(["Incident Approval"]);
   });
 
   it("highlights only Spotting Queue on /console/spotting", async () => {

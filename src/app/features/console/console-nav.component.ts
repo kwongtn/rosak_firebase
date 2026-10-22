@@ -1,23 +1,11 @@
 import { Component } from "@angular/core";
 import { RouterLink, RouterLinkActive } from "@angular/router";
-
-interface ConsoleNavItem {
-  path: string;
-  label: string;
-  /** The spotting queue's own path must match exactly — the bare /console now redirects to
-   * /console/spotting, so a link to /console would never highlight on the canonical URL. */
-  exact: boolean;
-}
-
-const ITEMS: ConsoleNavItem[] = [
-  { path: "/console/spotting", label: "Spotting Queue", exact: true },
-  { path: "/console/insiden/pending", label: "Incident Approval", exact: false },
-  { path: "/console/links", label: "Social Media Links", exact: false },
-];
+import { CONSOLE_LINKS } from "../../shell/nav-config";
 
 /**
  * Section switcher shared by every console page — pill links whose active
  * state comes from RouterLinkActive, so highlighting follows the real URL.
+ * The sections come from `CONSOLE_LINKS`, the same list `<app-nav>` and the compact nav render.
  */
 @Component({
   selector: "app-console-nav",
@@ -28,6 +16,7 @@ const ITEMS: ConsoleNavItem[] = [
         <a
           [routerLink]="item.path"
           routerLinkActive="bg-primary text-primary-foreground border-primary"
+          ariaCurrentWhenActive="page"
           [routerLinkActiveOptions]="{ exact: item.exact }"
           class="hover:bg-muted rounded-lg border px-3 py-1.5 text-sm transition-colors"
         >
@@ -38,5 +27,5 @@ const ITEMS: ConsoleNavItem[] = [
   `,
 })
 export class ConsoleNavComponent {
-  protected readonly items = ITEMS;
+  protected readonly items = CONSOLE_LINKS;
 }
