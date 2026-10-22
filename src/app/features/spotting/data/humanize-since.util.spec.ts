@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mytInstant } from "../../../../testing/naive-myt";
+import { mytInstant, SPEC_ZONES } from "../../../../testing/naive-myt";
 import { humanizeSince } from "./humanize-since.util";
 
 const NOW = new Date(2026, 7, 18, 12, 0, 0); // Aug 18, 2026, local noon
@@ -125,7 +125,7 @@ describe("humanizeSince", () => {
  * one a Malaysian rider expects in both. A case that is wrong in one zone today runs as `it.fails`
  * there, naming its open finding: fixing the finding makes it fail, so flip it to `it` then.
  */
-describe.each(["UTC", "Asia/Kuala_Lumpur"])("humanizeSince on API timestamps in TZ=%s", (zone) => {
+describe.each(SPEC_ZONES)("humanizeSince on API timestamps in TZ=%s", (zone) => {
   /** F090/F438: `new Date()` reads a naive or date-only string in the process zone. */
   const wrongInUtc = zone === "UTC" ? it.fails : it;
 

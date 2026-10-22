@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mytInstant } from "../../../testing/naive-myt";
+import { mytInstant, SPEC_ZONES } from "../../../testing/naive-myt";
 import {
   dateKeyOf,
   SpottingActivityHeatmap,
@@ -39,7 +39,7 @@ describe("SpottingActivityHeatmap smoke", () => {
  * today runs as `it.fails`, naming its open finding: fixing the finding makes it fail, so flip it to
  * `it` then.
  */
-describe.each(["UTC", "Asia/Kuala_Lumpur"])("heatmap date helpers in TZ=%s", (zone) => {
+describe.each(SPEC_ZONES)("heatmap date helpers in TZ=%s", (zone) => {
   beforeAll(() => {
     vi.stubEnv("TZ", zone);
   });
