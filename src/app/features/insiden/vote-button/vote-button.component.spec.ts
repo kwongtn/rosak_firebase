@@ -161,22 +161,28 @@ describe("VoteButtonComponent", () => {
   });
 
   it("keeps the voted colour on hover, where the ghost variant's hover:text-foreground would win", async () => {
-    // ghost's hover:text-foreground has the same specificity as text-green-600, so a voted button
-    // needs its own hover colour or it turns foreground-coloured under the pointer.
+    // ghost's hover:text-foreground ties with a voted button's hover colour on specificity, and a
+    // token such as text-destructive sorts before text-foreground, so the voted colour has to REPLACE
+    // it (HlmButton merges its class input through hlm()) or the button turns foreground under the
+    // pointer.
     const [upvote, downvote] = fixture.nativeElement.querySelectorAll("button");
-    expect(upvote.classList.contains("hover:text-green-600")).toBe(false);
+    expect(upvote.classList.contains("hover:text-success")).toBe(false);
+    expect(upvote.classList.contains("hover:text-foreground")).toBe(true);
 
     await asTestable(fixture).onVoteClick(1);
     await fixture.whenStable();
-    expect(upvote.classList.contains("text-green-600")).toBe(true);
-    expect(upvote.classList.contains("hover:text-green-600")).toBe(true);
-    expect(downvote.classList.contains("hover:text-red-600")).toBe(false);
+    expect(upvote.classList.contains("text-success")).toBe(true);
+    expect(upvote.classList.contains("hover:text-success")).toBe(true);
+    expect(upvote.classList.contains("hover:text-foreground")).toBe(false);
+    expect(downvote.classList.contains("hover:text-destructive")).toBe(false);
 
     await asTestable(fixture).onVoteClick(-1);
     await fixture.whenStable();
-    expect(downvote.classList.contains("text-red-600")).toBe(true);
-    expect(downvote.classList.contains("hover:text-red-600")).toBe(true);
-    expect(upvote.classList.contains("hover:text-green-600")).toBe(false);
+    expect(downvote.classList.contains("text-destructive")).toBe(true);
+    expect(downvote.classList.contains("hover:text-destructive")).toBe(true);
+    expect(downvote.classList.contains("hover:text-foreground")).toBe(false);
+    expect(upvote.classList.contains("hover:text-success")).toBe(false);
+    expect(upvote.classList.contains("hover:text-foreground")).toBe(true);
   });
 
   it("sends the upvoteChronology mutation with the chronology id when targetType is chronology", async () => {

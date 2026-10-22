@@ -71,7 +71,8 @@ import {
   imports: [HlmButton],
   template: `
     <div class="group/vote flex items-center gap-0.5" [attr.aria-label]="ariaLabel()">
-      <!-- hover:* keeps the voted colour over the ghost variant's hover:text-foreground -->
+      <!-- [class] feeds HlmButton's class input, which merges through hlm(): the voted colour
+           replaces the ghost variant's hover:text-foreground instead of tying with it. -->
       <button
         hlmBtn
         variant="ghost"
@@ -79,8 +80,7 @@ import {
         type="button"
         aria-label="Upvote"
         [attr.aria-pressed]="state().userVote === 1"
-        [class.text-green-600]="state().userVote === 1"
-        [class.hover:text-green-600]="state().userVote === 1"
+        [class]="state().userVote === 1 ? 'text-success hover:text-success' : ''"
         [disabled]="!auth.isLoggedIn() || isVoting()"
         (click)="onVoteClick(1)"
       >
@@ -113,8 +113,7 @@ import {
         type="button"
         aria-label="Downvote"
         [attr.aria-pressed]="state().userVote === -1"
-        [class.text-red-600]="state().userVote === -1"
-        [class.hover:text-red-600]="state().userVote === -1"
+        [class]="state().userVote === -1 ? 'text-destructive hover:text-destructive' : ''"
         [disabled]="!auth.isLoggedIn() || isVoting()"
         (click)="onVoteClick(-1)"
       >

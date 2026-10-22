@@ -228,7 +228,7 @@ describe("LineNoticesComponent", () => {
       const otherClass = second.querySelector('[data-testid="line-notice"]')?.className ?? "";
 
       expect(classes[0]).toContain("text-destructive");
-      expect(classes[1]).toContain("text-amber-800");
+      expect(classes[1]).toContain("text-warning-foreground");
       expect(otherClass).toContain("text-neutral-700");
     });
   });

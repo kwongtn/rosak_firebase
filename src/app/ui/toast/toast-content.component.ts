@@ -10,9 +10,9 @@ export interface ToastLink {
 }
 
 const TYPE_ICON_CLASS: Record<ToastVisualType, string> = {
-  success: "text-green-600",
-  error: "text-red-600",
-  info: "text-sky-600",
+  success: "text-success",
+  error: "text-destructive",
+  info: "text-info",
 };
 
 /**

@@ -459,9 +459,9 @@ describe("HomeHeroComponent", () => {
     // the IN-SERVICE ones, so the degraded and critical fixtures below have to be operational
     // statuses; a TESTING/DEFUNCT line would no longer move either surface.
     for (const [lines, fill, text] of [
-      [linesWith(16, 0), "bg-green-500", "text-green-600"],
+      [linesWith(16, 0), "bg-success", "text-success"],
       [networkLines(), "bg-orange-500", "text-orange-600"],
-      [linesWith(16, 9), "bg-red-500", "text-red-600"],
+      [linesWith(16, 9), "bg-destructive", "text-destructive"],
       [[], "bg-muted-foreground/40", "text-foreground"],
     ] as const satisfies [LinePulse[], string, string][]) {
       expect(classes("hero-status-line", lines), fill).toContain(fill);
@@ -535,20 +535,20 @@ describe("HomeHeroComponent", () => {
       render(linesWith(16, 0));
       fixture.detectChanges();
       expect(fill().className).toContain("motion-safe:animate-icon-glow");
-      expect(fill().className).toContain("text-green-500");
+      expect(fill().className).toContain("text-success");
 
       // The glow ENDS (the class alone never would — the animation is infinite), and the tone class
       // stays exactly where it was.
       vi.advanceTimersByTime(5000);
       fixture.detectChanges();
       expect(fill().className).not.toContain("motion-safe:animate-icon-glow");
-      expect(fill().className).toContain("bg-green-500");
+      expect(fill().className).toContain("bg-success");
 
       // …and it re-arms on the NEXT change, so a line going down is as visible as the first read.
       render(linesWith(16, 9));
       fixture.detectChanges();
       expect(fill().className).toContain("motion-safe:animate-icon-glow");
-      expect(fill().className).toContain("text-red-500");
+      expect(fill().className).toContain("text-destructive");
     } finally {
       vi.useRealTimers();
     }
@@ -601,8 +601,8 @@ describe("HomeHeroComponent", () => {
       makeLine({ id: "closed", code: "SKY", status: "DEFUNCT" }),
     ]);
     expect(textOf(root, "hero-headline")).toBe("All 14 lines running normally");
-    expect(classes(root, "hero-status-line")).toContain("bg-green-500");
-    expect(classes(root, "hero-headline")).toContain("text-green-600");
+    expect(classes(root, "hero-status-line")).toContain("bg-success");
+    expect(classes(root, "hero-headline")).toContain("text-success");
     // Nothing renders BELOW the sentence for an out-of-service line: the tile stays at zero and no
     // callout names SAL or SKY.
     expect(tile(root, "hero-stat-needs-attention")).toEqual(["0", "Needs attention"]);

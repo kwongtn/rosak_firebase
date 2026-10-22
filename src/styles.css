@@ -163,6 +163,12 @@
 @theme inline {
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 }
 
 /* Dark mode is toggled by ThemeService adding/removing `.dark` on <html> — not by
@@ -278,6 +284,17 @@ body {
   --accent: oklch(0.93 0.03 255);
   --accent-foreground: oklch(0.25 0.03 255);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Status colours (Tailwind green/amber/blue, mapped to `bg-success`, `text-warning`, ...). `--X` is
+     the accent: an icon, a dot, a fill or large text on a card (3:1 there, except light `--warning`,
+     a fill/dot colour at 2.1:1). `--X-foreground` is small text on a `bg-X/15` tint, dark enough for
+     AA there. A status colour is chosen here, once, so the same meaning (normal service, pending,
+     info) is the same colour in every component. */
+  --success: oklch(0.627 0.194 149.214); /* green-600 */
+  --success-foreground: oklch(0.448 0.119 151.328); /* green-800 */
+  --warning: oklch(0.769 0.188 70.08); /* amber-500 */
+  --warning-foreground: oklch(0.473 0.137 46.201); /* amber-800 */
+  --info: oklch(0.546 0.245 262.881); /* blue-600 */
+  --info-foreground: oklch(0.424 0.199 265.638); /* blue-800 */
   /* Brand orange (#ee7104) — accent only, never an action control's fill. */
   --brand: #ee7104;
   --brand-foreground: #ffffff;
@@ -312,6 +329,13 @@ body {
   --accent: oklch(0.32 0.045 255);
   --accent-foreground: oklch(0.96 0.01 255);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Lifted for the dark card, like --destructive: the accent is the 400 shade, the tint text the 300. */
+  --success: oklch(0.792 0.209 151.711); /* green-400 */
+  --success-foreground: oklch(0.871 0.15 154.449); /* green-300 */
+  --warning: oklch(0.828 0.189 84.429); /* amber-400 */
+  --warning-foreground: oklch(0.879 0.169 91.605); /* amber-300 */
+  --info: oklch(0.707 0.165 254.624); /* blue-400 */
+  --info-foreground: oklch(0.809 0.105 251.813); /* blue-300 */
   /* Lifted for the dark card: the light-mode orange is too close to the dark background's value
      range to hold a solid fill, while this one still reads as the same hue. */
   --brand: #f79331;

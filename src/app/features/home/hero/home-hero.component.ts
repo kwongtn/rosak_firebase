@@ -397,15 +397,19 @@ export class HomeHeroComponent implements OnDestroy {
     );
   });
 
-  /** The headline's text tone, dark-mode aware. Literal class strings — Tailwind must see them. */
+  /**
+   * The headline's text tone, dark-mode aware. Literal class strings — Tailwind must see them.
+   * Normal and critical are the success and destructive tokens (which carry their dark pair);
+   * degraded stays raw orange, a rung on the passenger-status ladder that no status token covers.
+   */
   protected readonly _headlineClass = computed(() => {
     switch (this._tone()) {
       case "normal":
-        return "text-green-600 dark:text-green-400";
+        return "text-success";
       case "degraded":
         return "text-orange-600 dark:text-orange-400";
       case "critical":
-        return "text-red-600 dark:text-red-400";
+        return "text-destructive";
       default:
         return "text-foreground";
     }
@@ -462,11 +466,11 @@ export class HomeHeroComponent implements OnDestroy {
     const tone = (() => {
       switch (this._tone()) {
         case "normal":
-          return "bg-green-500 text-green-500";
+          return "bg-success text-success";
         case "degraded":
           return "bg-orange-500 text-orange-500";
         case "critical":
-          return "bg-red-500 text-red-500";
+          return "bg-destructive text-destructive";
         default:
           return "bg-muted-foreground/40 text-muted-foreground";
       }
