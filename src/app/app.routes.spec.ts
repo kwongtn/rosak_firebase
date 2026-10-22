@@ -69,7 +69,13 @@ describe("app routes: the lazy home route", () => {
     const [home] = HOME_ROUTES;
     expect(home.path).toBe("");
     expect(home.component).toBe(HomePage);
-    expect(home.providers).toEqual([HomeStore, HomeViewModeService, LineStatusSheetService]);
+    // The fourth is provideReportOutboxFlush(), an EnvironmentProviders object made per call.
+    expect(home.providers).toHaveLength(4);
+    expect(home.providers?.slice(0, 3)).toEqual([
+      HomeStore,
+      HomeViewModeService,
+      LineStatusSheetService,
+    ]);
   });
 
   it.each([
@@ -168,7 +174,7 @@ function eagerSourceFiles(): string[] {
 }
 
 describe("app routes: what main.ts pulls into the initial bundle", () => {
-  it("statically reaches no page, shell, auth, GraphQL client, preferences or methodology code", () => {
+  it("statically reaches no page, shell, auth, GraphQL client, preferences, methodology or outbox code", () => {
     const eager = eagerSourceFiles();
 
     // The walk has to see the real graph, or the check below passes on an empty list.
@@ -180,7 +186,9 @@ describe("app routes: what main.ts pulls into the initial bundle", () => {
     // Firebase Auth and the methodology registry, about 156 kB.
     expect(
       eager.filter((file) =>
-        /^src\/app\/(?:features|shell|core\/(?:auth|graphql|preferences|methodology))\//.test(file),
+        /^src\/app\/(?:features|shell|core\/(?:auth|graphql|preferences|methodology|offline))\//.test(
+          file,
+        ),
       ),
     ).toEqual([]);
   });

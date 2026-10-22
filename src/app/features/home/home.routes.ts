@@ -3,6 +3,7 @@ import { Routes } from "@angular/router";
 import { HomeStore } from "./data/home.store";
 import { HomeViewModeService } from "./data/home-view-mode.service";
 import { LineStatusSheetService } from "./data/line-status-sheet.service";
+import { provideReportOutboxFlush } from "./data/report-outbox-flush";
 import { HomePage } from "./home.page";
 
 export const HOME_ROUTES: Routes = [
@@ -21,8 +22,12 @@ export const HOME_ROUTES: Routes = [
     // They live in this lazily loaded file, not in app.routes.ts, so the store, its queries, the
     // methodology registry and Firebase Auth stay out of the initial bundle. `component` (not
     // loadComponent) keeps the page in this same chunk: one fetch for the initial route, not two.
+    //
+    // provideReportOutboxFlush() registers the line status outbox's flush (reconnect, route start,
+    // board beat) here for the same reason: the outbox and Firebase Auth stay out of main, and the
+    // board it refreshes after a send is this route's HomeStore. See report-outbox-flush.ts.
     path: "",
     component: HomePage,
-    providers: [HomeStore, HomeViewModeService, LineStatusSheetService],
+    providers: [HomeStore, HomeViewModeService, LineStatusSheetService, provideReportOutboxFlush()],
   },
 ];

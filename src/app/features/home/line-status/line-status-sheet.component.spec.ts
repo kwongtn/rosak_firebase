@@ -2,10 +2,16 @@ import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
+import {
+  REPORT_OUTBOX_MAX_AGE_MINUTES,
+  ReportOutboxService,
+  parseReportOutbox,
+} from "../../../core/offline/report-outbox.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
@@ -105,9 +111,17 @@ describe("LineStatusSheetComponent", () => {
       providers: [
         provideZonelessChangeDetection(),
         provideHttpClientTesting(),
+        // The outbox line's info popover links to /methodology.
+        provideRouter([]),
         {
           provide: AuthService,
-          useValue: { isLoggedIn, login, idToken: async () => "token" },
+          useValue: {
+            isLoggedIn,
+            login,
+            idToken: async () => "token",
+            user: signal({ uid: "u1" }),
+            whenReady: Promise.resolve(),
+          },
         },
         { provide: GraphQLClient, useValue: { request: requestMock } },
         { provide: ToastService, useValue: toastMocks },
@@ -124,8 +138,10 @@ describe("LineStatusSheetComponent", () => {
   afterEach(() => {
     httpMock.verify();
     vi.unstubAllGlobals();
-    // The sheet saves its draft to sessionStorage, which outlives a test inside this file.
+    // The sheet saves its draft to sessionStorage and queues to localStorage, both of which outlive
+    // a test inside this file.
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   /* ---- draft-first: the form is NOT behind a login wall ---------------------------------- */
@@ -361,18 +377,104 @@ describe("LineStatusSheetComponent", () => {
     expect(sheetMock.setOpen).not.toHaveBeenCalled();
   });
 
-  it("shows an inline transport error and still rethrows it", async () => {
+  /* ---- the outbox: a report the server cannot take is queued, not lost ------------------ */
+
+  function queuedReports() {
+    return parseReportOutbox(localStorage.getItem("rosak:report-outbox:v1"));
+  }
+
+  it("queues the report when the server cannot be reached, says so, and still rethrows", async () => {
     requestMock.mockRejectedValue(new Error("Network down"));
     await prepareSubmit();
+    asTestable(fixture).notes.set("Doors stuck open");
+    asTestable(fixture).delayMinutes.set("7");
+    asTestable(fixture).selectedStationIds.set(["s2"]);
+    fixture.detectChanges();
+    const emitted = vi.fn();
+    fixture.componentInstance.submitted.subscribe(emitted);
 
     await expect(asTestable(fixture).submit()).rejects.toThrow("Network down");
     fixture.detectChanges();
 
-    expect(submitErrorElement()?.textContent?.trim()).toBe(
-      "Couldn't reach the server. Check your connection and try again.",
+    expect(queuedReports()).toEqual([
+      expect.objectContaining({
+        lineId: "line-1",
+        status: "NORMAL",
+        stationIds: ["s2"],
+        delayMinutes: 7,
+        notes: "Doors stuck open",
+        uid: "u1",
+      }),
+    ]);
+    expect(toastMocks.info).toHaveBeenCalledExactlyOnceWith(
+      "Saved",
+      "It will send when you're back online.",
     );
     expect(toastMocks.success).not.toHaveBeenCalled();
-    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+    expect(submitErrorElement()).toBeNull();
+    expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
+    // Nothing reached the board yet, so the host has nothing to reload or ring.
+    expect(emitted).not.toHaveBeenCalled();
+    expect(preferences.pushRecentLine).toHaveBeenCalledWith("line-1");
+    // The outbox holds the report now; the saved draft is gone with it.
+    expect(sessionStorage.getItem("rosak:line-status-draft:v1:line-1")).toBeNull();
+  });
+
+  it("queues without a request when the browser is offline at submit", async () => {
+    await prepareSubmit();
+    window.dispatchEvent(new Event("offline"));
+    fixture.detectChanges();
+
+    await asTestable(fixture).submit();
+
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(queuedReports()).toEqual([expect.objectContaining({ lineId: "line-1" })]);
+    expect(toastMocks.info).toHaveBeenCalledExactlyOnceWith(
+      "Saved",
+      "It will send when you're back online.",
+    );
+    expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("says, while offline, that Submit will save the report, and explains the expiry", async () => {
+    await openSheetWithStations();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="line-status-outbox-note"]')).toBeNull();
+
+    window.dispatchEvent(new Event("offline"));
+    fixture.detectChanges();
+
+    const note = root.querySelector<HTMLElement>('[data-testid="line-status-outbox-note"]');
+    expect(note?.textContent).toContain(
+      "You're offline. Submit saves your report, and it will send when you're back online.",
+    );
+    note?.querySelector<HTMLButtonElement>("app-info-popover button")?.click();
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="line-status-outbox-popover"]')?.textContent).toContain(
+      `Queued reports expire after ${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes`,
+    );
+
+    window.dispatchEvent(new Event("online"));
+    fixture.detectChanges();
+    expect(root.querySelector('[data-testid="line-status-outbox-note"]')).toBeNull();
+  });
+
+  it("says when this line already has a report waiting to send", async () => {
+    TestBed.inject(ReportOutboxService).enqueue({
+      lineId: "line-1",
+      status: "DELAYED",
+      stationIds: [],
+      delayMinutes: null,
+      notes: null,
+    });
+
+    await openSheetWithStations();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="line-status-outbox-note"]',
+      )?.textContent,
+    ).toContain("Your saved report for this line will send when you're back online.");
   });
 
   it("closes the sheet from Cancel without submitting", async () => {

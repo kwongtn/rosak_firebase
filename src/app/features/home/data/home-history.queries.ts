@@ -220,7 +220,7 @@ export const SUBMIT_LINE_STATUS_REPORT_MUTATION = /* GraphQL */ `
   }
 `;
 
-interface LineStatusReportInput {
+export interface LineStatusReportInput {
   lineId: string;
   status: PassengerStatus;
   stationIds?: string[];

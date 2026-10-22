@@ -17,6 +17,12 @@ import {
   GraphQLRequestError,
   graphqlResource,
 } from "../../../core/graphql/graphql-client";
+import { metricTooltip } from "../../../core/methodology/methodology-render.util";
+import { OnlineService } from "../../../core/network/online.service";
+import {
+  ReportOutboxService,
+  type LineStatusReportPayload,
+} from "../../../core/offline/report-outbox.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import {
   readStorageItem,
@@ -24,6 +30,7 @@ import {
   writeStorageItem,
 } from "../../../core/util/web-storage.util";
 import { HlmButton } from "../../../ui/button/button";
+import { InfoPopover } from "../../../ui/info-popover/info-popover";
 import { HlmInput } from "../../../ui/input/input";
 import { RetryBannerComponent } from "../../../ui/retry-banner/retry-banner.component";
 import { HlmSheet, HlmSheetBody, HlmSheetFooter, HlmSheetHeader } from "../../../ui/sheet/sheet";
@@ -39,12 +46,9 @@ import {
 } from "../../spotting/data/spotting.queries";
 import { LinePulse } from "../data/home-board.queries";
 import { PassengerStatus } from "../data/home.queries";
-import {
-  SUBMIT_LINE_STATUS_REPORT_MUTATION,
-  SubmitLineStatusReportData,
-  SubmitLineStatusReportVars,
-} from "../data/home-history.queries";
+import type { LineStatusReportInput } from "../data/home-history.queries";
 import { LineStatusSheetService } from "../data/line-status-sheet.service";
+import { submitLineStatusReport } from "../data/submit-line-status-report";
 import { passengerMetric } from "../data/line-status-metrics.util";
 import { PASSENGER_LABEL } from "../data/passenger-status.util";
 import {
@@ -83,8 +87,15 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
  *
  * The draft is also SAVED, per line, to `sessionStorage` (`line-status-draft.util.ts`) while the
  * sheet is open. The close edge resets the form in memory only, so an accidental close or a reload
- * loses nothing: the next open on the same line restores it under a "Draft restored" line. Discard
- * and a successful submit are the two ways the saved draft ends.
+ * loses nothing: the next open on the same line restores it under a "Draft restored" line. Discard,
+ * a successful submit and a queued one (below) are the ways the saved draft ends.
+ *
+ * 🔴 **A report the server cannot take is QUEUED, not lost.** Offline at Submit, or a failure that
+ * is not a `GraphQLRequestError` (the request never completed), hands the report to
+ * `ReportOutboxService` (`core/offline/`), toasts "Saved. It will send when you're back online."
+ * and closes the sheet as a submit does. The home route flushes the outbox on reconnect
+ * (`data/report-outbox-flush.ts`); a queued report expires after the methodology's
+ * `REPORT_OUTBOX_MAX_AGE_MINUTES`, which the sheet's outbox line explains in its popover.
  */
 @Component({
   selector: "app-line-status-sheet",
@@ -97,6 +108,7 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
     HlmInput,
     RetryBannerComponent,
     AssetMultiSelectComponent,
+    InfoPopover,
   ],
   template: `
     <hlm-sheet
@@ -247,6 +259,22 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
             />
           }
 
+          @if (outboxNote(); as note) {
+            <p
+              class="text-muted-foreground flex items-start gap-1.5 text-xs"
+              data-testid="line-status-outbox-note"
+            >
+              <span>{{ note }}</span>
+              <app-info-popover
+                label="Saved reports"
+                align="end"
+                testId="line-status-outbox-popover"
+                [content]="outboxExpiry"
+                [link]="methodologyLink"
+              />
+            </p>
+          }
+
           @if (submitError(); as error) {
             <p class="text-destructive text-xs" data-testid="line-status-submit-error" role="alert">
               {{ error }}
@@ -293,6 +321,8 @@ export class LineStatusSheetComponent {
   private readonly graphql = inject(GraphQLClient);
   private readonly toast = inject(ToastService);
   private readonly preferences = inject(PreferencesService);
+  private readonly online = inject(OnlineService);
+  private readonly outbox = inject(ReportOutboxService);
 
   private readonly isBrowser = injectIsBrowser();
 
@@ -312,6 +342,28 @@ export class LineStatusSheetComponent {
 
   /** Inline submission failure shown above the footer; null when there is nothing to report. */
   protected readonly submitError = signal<string | null>(null);
+
+  /**
+   * What Submit will do without a connection, or that this line already has a report waiting.
+   * `null` while online with nothing queued, so the line is not drawn.
+   */
+  protected readonly outboxNote = computed<string | null>(() => {
+    const lineId = this.lineId();
+    if (lineId && this.outbox.hasQueued(lineId)) {
+      return "Your saved report for this line will send when you're back online.";
+    }
+    return this.online.isOnline()
+      ? null
+      : "You're offline. Submit saves your report, and it will send when you're back online.";
+  });
+
+  /** The outbox's expiry rule, from the methodology registry (never a literal here). */
+  protected readonly outboxExpiry = metricTooltip("line-status.queued-report-expiry");
+  protected readonly methodologyLink = {
+    text: "How this works",
+    routerLink: "/methodology",
+    fragment: "line-status",
+  };
 
   /** True from the open that restored a saved draft until it is discarded, submitted or closed. */
   protected readonly draftRestored = signal(false);
@@ -494,24 +546,25 @@ export class LineStatusSheetComponent {
       return;
     }
 
+    const parsedDelay = Number.parseInt(this.delayMinutes(), 10);
+    const input = {
+      lineId,
+      status,
+      stationIds: this.selectedStationIds(),
+      delayMinutes: Number.isFinite(parsedDelay) ? parsedDelay : null,
+      notes: this.notes().trim() || null,
+    } satisfies LineStatusReportInput;
+
+    if (!this.online.isOnline()) {
+      // `false` is reliable (no network at all), so there is nothing to try: queue it now.
+      this.queueReport(input);
+      return;
+    }
+
     this.isSubmitting.set(true);
     try {
-      const idToken = await this.auth.idToken();
-      const parsedDelay = Number.parseInt(this.delayMinutes(), 10);
-      const vars: SubmitLineStatusReportVars = {
-        input: {
-          lineId,
-          status,
-          stationIds: this.selectedStationIds(),
-          delayMinutes: Number.isFinite(parsedDelay) ? parsedDelay : null,
-          notes: this.notes().trim() || null,
-        },
-      };
-      const data = await this.graphql.request<
-        SubmitLineStatusReportData,
-        SubmitLineStatusReportVars
-      >(SUBMIT_LINE_STATUS_REPORT_MUTATION, vars, idToken ? { "firebase-auth-key": idToken } : {});
-      if (!data.submitLineStatusReport.ok) {
+      const ok = await submitLineStatusReport(this.graphql, this.auth, input);
+      if (!ok) {
         // Business-level rejection: GraphQL returned no top-level errors, but nothing was saved.
         this.submitError.set("Couldn't submit your report. Please try again.");
         return;
@@ -533,15 +586,31 @@ export class LineStatusSheetComponent {
         this.submitError.set(err.message);
         return;
       }
-      this.submitError.set("Couldn't reach the server. Check your connection and try again.");
+      // The server never answered: a dead link that `navigator.onLine` still calls online, a 5xx, a
+      // token refresh that could not reach Firebase. Queue the report instead of showing an error,
+      // and still rethrow, so Sentry sees how often it happens.
+      this.queueReport(input);
       throw err;
     } finally {
       this.isSubmitting.set(false);
     }
   }
 
+  /** Hands a report the server could not take to the outbox and closes the sheet, as a submit does. */
+  private queueReport(input: LineStatusReportPayload): void {
+    this.outbox.enqueue(input);
+    this.toast.info("Saved", "It will send when you're back online.");
+    // Same prefill as a sent report: this is still the line the reader is working on.
+    this.preferences.setLastReportedLine(input.lineId);
+    this.preferences.pushRecentLine(input.lineId);
+    // The outbox holds the report now, so the draft has done its job.
+    this.forgetSavedDraft();
+    this.clear();
+    this.sheet.setOpen(false);
+  }
+
   /** Public so the close effect and tests share one reset path. In memory only: the saved copy is
-   * forgotten by Discard and a successful submit, never by a close. */
+   * forgotten by Discard and by a sent or queued submit, never by a close. */
   clear(): void {
     this.status.set(null);
     this.delayMinutes.set("");
