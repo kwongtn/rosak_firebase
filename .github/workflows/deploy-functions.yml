@@ -56,11 +56,10 @@ jobs:
         working-directory: functions
         run: npm run build
 
-      # Optional gate: run function tests before deploy. Non-blocking
-      # if no tests are configured; fails the job if tests fail.
-      - name: Test (optional gate)
+      # Required gate: functions/ has spec files, so a failing or missing test script stops the deploy.
+      - name: Test
         working-directory: functions
-        run: npm test --if-present
+        run: npm test
 
       - name: Authenticate to Google Cloud (WIF)
         if: env.HAS_WIF_SECRETS == 'true'
@@ -74,4 +73,4 @@ jobs:
 
       - name: Deploy Functions
         if: env.HAS_WIF_SECRETS == 'true'
-        run: npx firebase-tools deploy --only functions --project rosak-7223b --force --non-interactive
+        run: npx firebase-tools@15.34.1 deploy --only functions --project rosak-7223b --force --non-interactive

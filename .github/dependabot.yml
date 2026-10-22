@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      angular:
+        patterns:
+          - "@angular/*"
+          - "angular-eslint"
+      firebase:
+        patterns:
+          - "firebase"
+          - "firebase-admin"
+          - "firebase-functions"
+
+  - package-ecosystem: npm
+    directory: /functions
+    schedule:
+      interval: weekly
+    groups:
+      firebase:
+        patterns:
+          - "firebase"
+          - "firebase-admin"
+          - "firebase-functions"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
