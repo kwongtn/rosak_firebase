@@ -8,9 +8,7 @@ export const PROFILE_ROUTES: Routes = [
     loadComponent: () => import("./profile.page").then((m) => m.ProfilePage),
   },
   {
-    // Public — anyone can view a profile by id, but ProfilePage itself only ever renders
-    // real data for the signed-in owner (see its own doc comment for why: the backend has no
-    // way to fetch another user's data by id today).
+    // Public: the owner sees their own data, a visitor sees `publicUser(id)` (see ProfilePage).
     path: ":id",
     loadComponent: () => import("./profile.page").then((m) => m.ProfilePage),
   },
