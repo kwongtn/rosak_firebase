@@ -18,7 +18,7 @@ npm run verify     # before pushing: Prettier + unit tests + production build
 ```
 
 The remaining commands (build, SSR serve, single test suites, Playwright e2e) are in
-[`AGENTS.md`](AGENTS.md) § Quick Commands. There is no ESLint; Prettier is the only lint gate.
+[`AGENTS.md`](AGENTS.md) § Quick Commands. Prettier is the CI lint gate; `npm run lint` (ESLint) reports warnings only for now.
 
 ## Documentation
 

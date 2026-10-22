@@ -276,6 +276,16 @@ itself.
     throwaway `--runner-config` file: `test: { maxWorkers: 1, fileParallelism: false }` plus
     `sequence: { sequencer }` (a class whose `sort(files)` returns the order) or
     `sequence: { shuffle: { files: true }, seed: 11 }`.
+- **Contract and accessibility specs**: `core/graphql/documents.spec.ts` validates every query and
+  mutation string in the `*.queries.ts` / `*.mutations.ts` modules under `src/app` against
+  `core/graphql/schema.graphql`, a snapshot of the backend SDL, and checks that each string-literal
+  union in `core/graphql/types.ts` named after a schema enum lists that enum's values. After a
+  backend schema change, run `npm run schema:refresh` (needs the Docker backend; set
+  `ROSAK_BACKEND_COMPOSE` outside `../rosak_backend`) and commit the snapshot. A known mismatch is
+  listed in the spec's `KNOWN_DRIFT` map and runs as `it.fails`. `src/testing/axe.ts` exports
+  `expectNoAxeViolations(fixture)`: axe-core with structural rules only (names, roles, ARIA, forms,
+  list structure); jsdom has no layout, so contrast and target size belong to the browser passes.
+  Await it after `detectChanges()`.
 
 **Content models coexist by design:**
 

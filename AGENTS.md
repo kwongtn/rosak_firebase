@@ -26,7 +26,10 @@ npm run e2e                     # Playwright: dev build + mock GraphQL server (s
                                 # run `npx playwright install chromium` once first
 ```
 
-There is **no ESLint and no `lint` script**. Type checking happens only via `npm run build`.
+`npm run lint` runs ESLint (`eslint.config.mjs`: template accessibility rules, `no-explicit-any`,
+`no-floating-promises`). Every rule is `warn` except those at zero findings, so it does not gate yet;
+Prettier stays the CI lint gate. Type checking happens only via `npm run build`.
+`npm run schema:refresh` rewrites `src/app/core/graphql/schema.graphql` from the Docker backend.
 
 Backend (`../rosak_backend`, Django 5.2 + Strawberry GraphQL + Celery): commands live in
 `../AGENTS.md` and `../rosak_backend/AGENTS.md`.
