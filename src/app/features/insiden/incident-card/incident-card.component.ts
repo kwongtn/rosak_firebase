@@ -12,6 +12,7 @@ import {
   signal,
   viewChild,
 } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { MarkdownComponent } from "ngx-markdown";
 import { resolveAdSlot } from "../../../core/ads/ads.config";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
@@ -108,6 +109,7 @@ const CHRONOLOGY_STATUS_VARIANT: Record<string, BadgeVariants["variant"]> = {
   selector: "app-incident-card",
   imports: [
     DatePipe,
+    RouterLink,
     MarkdownComponent,
     HlmButton,
     AdSlotComponent,

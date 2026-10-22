@@ -62,8 +62,16 @@
       @for (vehicle of incident().vehicles; track vehicle.id) {
         <span hlmBadge variant="outline">{{ vehicle.identificationNo }}</span>
       }
+      <!-- A station badge opens that station's page; it keeps the badge look. -->
       @for (station of incident().stations; track station.id) {
-        <span hlmBadge variant="outline">{{ station.displayName }}</span>
+        <a
+          hlmBadge
+          variant="outline"
+          class="focus-visible:ring-ring/50 underline-offset-2 outline-none hover:underline focus-visible:ring-2"
+          [routerLink]="['/station', station.id]"
+          data-testid="incident-station"
+          >{{ station.displayName }}</a
+        >
       }
     </div>
   }

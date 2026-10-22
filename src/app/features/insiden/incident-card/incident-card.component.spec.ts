@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { provideZonelessChangeDetection, signal } from "@angular/core";
 import { provideMarkdown } from "ngx-markdown";
+import { provideRouter } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "../../../core/auth/auth.service";
@@ -1226,5 +1227,50 @@ describe("IncidentCardComponent add to calendar", () => {
     expect(icsLines(await readBlobText(downloads[0]?.blob as Blob))).toContain(
       "SUMMARY:Kajang\\, Sri Petaling\\; delayed",
     );
+  });
+});
+
+describe("IncidentCardComponent station badges", () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [IncidentCardComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        {
+          provide: AuthService,
+          useValue: { user: signal(null), isLoggedIn: signal(false), isAdmin: signal(false) },
+        },
+        { provide: GraphQLClient, useValue: { request: vi.fn().mockResolvedValue({}) } },
+        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
+      ],
+    }).compileComponents();
+  });
+
+  it("links each station badge to that station's page, keeping the badge look", () => {
+    const fixture = TestBed.createComponent(IncidentCardComponent);
+    fixture.componentRef.setInput(
+      "incident",
+      makeIncident({
+        stations: [
+          { id: "1", displayName: "KL Sentral" },
+          { id: "65", displayName: "Abdullah Hukum" },
+        ],
+      }),
+    );
+    fixture.detectChanges();
+
+    const badges = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>(
+        '[data-testid="incident-station"]',
+      ),
+    ];
+    expect(badges.map((badge) => [badge.textContent?.trim(), badge.getAttribute("href")])).toEqual([
+      ["KL Sentral", "/station/1"],
+      ["Abdullah Hukum", "/station/65"],
+    ]);
+    expect(badges.every((badge) => badge.tagName === "A")).toBe(true);
+    expect(badges.every((badge) => badge.getAttribute("data-slot") === "badge")).toBe(true);
+    expect(badges[0]?.classList.contains("border-border")).toBe(true);
   });
 });
