@@ -7,7 +7,7 @@ import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../core/graphql/graphql-client";
 import { RecaptchaService } from "../../../core/recaptcha/recaptcha.service";
 import { ToastService } from "../../../ui/toast/toast.service";
-import type { MyEvent, PublicUserData } from "../data/profile.queries";
+import { DELETE_EVENT_MUTATION, type MyEvent, type PublicUserData } from "../data/profile.queries";
 import { MySpottingsComponent } from "./my-spottings.component";
 
 function makeEvent(id: string, overrides: Partial<MyEvent> = {}): MyEvent {
@@ -71,6 +71,7 @@ function blobText(blob: Blob): Promise<string> {
 describe("MySpottingsComponent", () => {
   let fixture: ComponentFixture<MySpottingsComponent>;
   let requestMock: ReturnType<typeof vi.fn>;
+  let recaptchaExecute: ReturnType<typeof vi.fn>;
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
@@ -90,6 +91,7 @@ describe("MySpottingsComponent", () => {
     );
 
     requestMock = vi.fn();
+    recaptchaExecute = vi.fn(async () => "captcha");
     toast = { success: vi.fn(), error: vi.fn() };
     await TestBed.configureTestingModule({
       imports: [MySpottingsComponent],
@@ -98,7 +100,7 @@ describe("MySpottingsComponent", () => {
         provideRouter([]),
         { provide: AuthService, useValue: { idToken: vi.fn(async () => "token") } },
         { provide: GraphQLClient, useValue: { request: requestMock } },
-        { provide: RecaptchaService, useValue: { execute: vi.fn() } },
+        { provide: RecaptchaService, useValue: { execute: recaptchaExecute } },
         { provide: ToastService, useValue: toast },
       ],
     }).compileComponents();
@@ -237,6 +239,184 @@ describe("MySpottingsComponent", () => {
       await vi.waitFor(() =>
         expect(toast.error).toHaveBeenCalledWith("Couldn't load spottings", "Network down"),
       );
+    });
+
+    it("loads the first page on a second try after the first one failed", async () => {
+      requestMock.mockRejectedValueOnce(new Error("Network down"));
+      await render(makeUser(null), true);
+      await vi.waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+
+      requestMock.mockResolvedValueOnce({ events: makeEvents(2) });
+      await fixture.componentInstance.loadMore();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll("li")).toHaveLength(2);
+      // The failure did not move the offset on, and did not leave the loader stuck.
+      expect(requestMock.mock.calls.map(([, vars]) => vars)).toEqual([
+        { limit: 30, offset: 0 },
+        { limit: 30, offset: 0 },
+      ]);
+    });
+
+    it("asks for the same page again when Load more is pressed after a failed page", async () => {
+      requestMock.mockResolvedValueOnce({ events: makeEvents(30) });
+      await render(makeUser(null), true);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(loadMoreButton()).toBeDefined();
+      });
+      requestMock.mockRejectedValueOnce(new Error("Network down"));
+      loadMoreButton()?.click();
+      await vi.waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(loadMoreButton()?.disabled).toBe(false);
+      });
+
+      requestMock.mockResolvedValueOnce({ events: makeEvents(5, 31) });
+      loadMoreButton()?.click();
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll("li")).toHaveLength(35);
+      });
+      expect(requestMock.mock.calls.map(([, vars]) => vars)).toEqual([
+        { limit: 30, offset: 0 },
+        { limit: 30, offset: 30 },
+        { limit: 30, offset: 30 },
+      ]);
+    });
+  });
+
+  describe("delete", () => {
+    const MINUTE_MS = 60 * 1000;
+    const HOUR_MS = 60 * MINUTE_MS;
+    const NOW = new Date("2026-10-22T12:00:00Z");
+
+    /** An event of the owner's own, logged `ageMs` before the faked clock, with its own vehicle number. */
+    function eventAged(id: string, ageMs: number): MyEvent {
+      const base = makeEvent(id);
+      return {
+        ...base,
+        created: new Date(NOW.getTime() - ageMs).toISOString(),
+        vehicle: { ...base.vehicle, identificationNo: `V${id}` },
+      };
+    }
+
+    const deleteButtons = (): HTMLButtonElement[] => [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        '[data-testid="delete-spotting"]',
+      ),
+    ];
+    const rowNumbers = (): (string | undefined)[] =>
+      vehicleLinks().map((link) => link.textContent?.trim());
+
+    /** Renders the owner's history with `events` as the first page, and waits for the rows. */
+    async function renderOwner(events: MyEvent[]): Promise<void> {
+      requestMock.mockResolvedValueOnce({ events });
+      await render(makeUser(null), true);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(vehicleLinks()).toHaveLength(events.length);
+      });
+    }
+
+    let confirm: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      // Only the clock is faked: `vi.waitFor` and the awaits in the component keep real timers.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(NOW);
+      confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      confirm.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it("offers delete for an entry inside the 3-day window and not past it", async () => {
+      await renderOwner([
+        eventAged("1", 2 * 24 * HOUR_MS + 23 * HOUR_MS), // 2d23h
+        eventAged("2", 3 * 24 * HOUR_MS - MINUTE_MS), // 2d23h59m: `vi.waitFor` ticks the faked clock
+        eventAged("3", 3 * 24 * HOUR_MS + HOUR_MS), // 3d1h
+      ]);
+
+      const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll("li")];
+      expect(
+        rows.map((li) => li.querySelector('[data-testid="delete-spotting"]') !== null),
+      ).toEqual([true, true, false]);
+    });
+
+    it("removes the row once the backend accepts the delete, and says so", async () => {
+      await renderOwner([
+        eventAged("1", HOUR_MS),
+        eventAged("2", HOUR_MS),
+        eventAged("3", HOUR_MS),
+      ]);
+      requestMock.mockResolvedValueOnce({ deleteEvent: { ok: true } });
+
+      deleteButtons()[0].click();
+
+      await vi.waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith("Deletion of spotting entry #1 successful."),
+      );
+      fixture.detectChanges();
+      expect(rowNumbers()).toEqual(["V2", "V3"]);
+      expect(recaptchaExecute).toHaveBeenCalledWith("deleteSpottingEntry");
+      const [query, variables, headers] = requestMock.mock.calls.at(-1)!;
+      expect(query).toBe(DELETE_EVENT_MUTATION);
+      expect(variables).toEqual({ deleteEventInput: { id: "1" } });
+      expect(headers).toEqual({ "g-recaptcha-response": "captcha", "firebase-auth-key": "token" });
+      expect(deleteButtons().every((button) => !button.disabled)).toBe(true);
+    });
+
+    it("keeps the row and says so when the backend answers ok: false", async () => {
+      await renderOwner([eventAged("1", HOUR_MS), eventAged("2", HOUR_MS)]);
+      requestMock.mockResolvedValueOnce({ deleteEvent: { ok: false } });
+
+      deleteButtons()[0].click();
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith(
+          "Unknown error on deletion",
+          "Please refresh the page and try again.",
+        ),
+      );
+      fixture.detectChanges();
+      expect(rowNumbers()).toEqual(["V1", "V2"]);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(deleteButtons().every((button) => !button.disabled)).toBe(true);
+    });
+
+    it("keeps the row and shows the failure when the request throws", async () => {
+      await renderOwner([eventAged("1", HOUR_MS)]);
+      requestMock.mockRejectedValueOnce(new Error("Network down"));
+
+      deleteButtons()[0].click();
+
+      await vi.waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("Couldn't delete", "Network down"),
+      );
+      fixture.detectChanges();
+      expect(rowNumbers()).toEqual(["V1"]);
+      expect(deleteButtons()[0].disabled).toBe(false);
+    });
+
+    it("does nothing when the owner cancels the confirmation", async () => {
+      await renderOwner([eventAged("1", HOUR_MS)]);
+      confirm.mockReturnValue(false);
+
+      deleteButtons()[0].click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      fixture.detectChanges();
+
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(recaptchaExecute).not.toHaveBeenCalled();
+      expect(requestMock).toHaveBeenCalledTimes(1); // the history read alone
+      expect(rowNumbers()).toEqual(["V1"]);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
     });
   });
 

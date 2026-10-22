@@ -515,6 +515,7 @@ export class MySpottingsComponent {
         },
       );
       if (data.deleteEvent.ok) {
+        this._ownEvents.update((list) => list.filter((event) => event.id !== eventId));
         this.toast.success(`Deletion of spotting entry #${eventId} successful.`);
       } else {
         this.toast.error("Unknown error on deletion", "Please refresh the page and try again.");
