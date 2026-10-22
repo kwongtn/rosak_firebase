@@ -169,7 +169,8 @@ const REVIEWED_AT_INCIDENT_HISTORY = "2026-10-22";
 /**
  * Bumped when the line-status sheet gained its offline outbox (2026-10-22, UTC). It publishes ONE
  * new rule to the `line-status` section: a report saved while offline is dropped, not sent, once it
- * is `REPORT_OUTBOX_MAX_AGE_MINUTES` old. Its own constant for the same reason as every one above.
+ * is older than its line's reporting window (`REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES` when the page
+ * did not know that window). Its own constant for the same reason as every one above.
  */
 const REVIEWED_AT_REPORT_OUTBOX = "2026-10-22";
 
@@ -642,17 +643,18 @@ export const METRIC_DOCS: MetricDoc[] = [
   {
     // The line-status sheet's offline outbox (`core/offline/report-outbox.service.ts`), surfaced from
     // the sheet's "will send when you're back online" line. The backend stamps a report with the time
-    // it ARRIVES and takes no client time, so a report that waited would count as fresh in the
-    // board's window; the expiry is what keeps a late send from doing that. The definition names the
-    // window without its length on purpose: that length is the backend's, per line, and is never
-    // mirrored here (only the outbox's own cap is a frontend number).
+    // it ARRIVES and takes no client time, so a report that waited counts as fresh in the board's
+    // window. The expiry BOUNDS that staleness (a late report can be up to one window old); it does
+    // not prevent it. The window is named without its length on purpose: that length is the
+    // backend's, per line, recorded with the report and never mirrored here. The one frontend number
+    // is the fallback for a page that did not know the window.
     id: "line-status.queued-report-expiry",
     sectionId: "line-status",
     title: "Saved reports",
     definition:
-      "When a line status report cannot reach the server, it is saved on this device and sent when the connection comes back. The server records a report at the moment it arrives, not when you wrote it, so a saved report expires {{REPORT_OUTBOX_MAX_AGE_MINUTES}} minutes after you submit it: an expired report is dropped and you are told, so a late send cannot land outside the board's status window and count an old observation as current. Each line keeps one saved report, and submitting again for the same line replaces it. A saved report is sent only for the account that wrote it.",
+      "When a line status report cannot reach the server, it is saved on this device and sent when the connection comes back. The server records a report at the moment it arrives, not when you wrote it, so a saved report is sent only while it is younger than its line's own reporting window, the window the backend sets for each line and the board counts its reports in ({{REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES}} minutes if the page did not know that window). After that it is dropped, and you are told if you are signed in to the account that saved it. The limit bounds how stale a late report can be but does not prevent it: a late report is counted from when it arrives, so it can describe conditions up to one window older than the board suggests. Each line keeps one saved report, and submitting again for the same line replaces it. A saved report is sent only for the account that wrote it.",
     summary:
-      "Queued reports expire after {{REPORT_OUTBOX_MAX_AGE_MINUTES}} minutes so a late send cannot land outside the board's status window. A newer report for the same line replaces the saved one.",
+      "A saved report is sent only while it is younger than its line's reporting window; then it is dropped. A late report still counts from when it arrives, so it can be up to one window old. A newer report for the same line replaces it.",
     ownerRoute: "/",
     sourceSpec: "LINE_STATUS_DERIVE.md",
     lastReviewed: REVIEWED_AT_REPORT_OUTBOX,

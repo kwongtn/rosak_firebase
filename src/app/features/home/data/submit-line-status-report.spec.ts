@@ -76,7 +76,12 @@ describe("submitLineStatusReport", () => {
 });
 
 describe("sendQueuedLineStatusReport", () => {
-  const queued: QueuedLineStatusReport = { ...INPUT, queuedAt: 1, uid: "u1" };
+  const queued: QueuedLineStatusReport = {
+    ...INPUT,
+    queuedAt: 1,
+    statusWindowMinutes: 15,
+    uid: "u1",
+  };
 
   it("sends a queued report as the mutation's input, without the outbox's bookkeeping", async () => {
     const { graphql, auth, request } = fakes("token", {

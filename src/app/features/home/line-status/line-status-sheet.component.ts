@@ -95,8 +95,8 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
  * `isRetryableSendFailure` accepts (the report did not get through), hands the report to
  * `ReportOutboxService` (`core/offline/`), toasts "Saved. It will send when you're back online."
  * and closes the sheet as a submit does. The home route flushes the outbox on reconnect
- * (`data/report-outbox-flush.ts`); a queued report expires after the methodology's
- * `REPORT_OUTBOX_MAX_AGE_MINUTES`, which the sheet's outbox line explains in its popover.
+ * (`data/report-outbox-flush.ts`); a queued report expires once it is older than its line's
+ * `statusWindowMinutes`, which the sheet's outbox line explains in its popover.
  */
 @Component({
   selector: "app-line-status-sheet",
@@ -606,7 +606,8 @@ export class LineStatusSheetComponent {
 
   /** Hands a report the server could not take to the outbox and closes the sheet, as a submit does. */
   private queueReport(input: LineStatusReportPayload): void {
-    this.outbox.enqueue(input);
+    // The line's own window bounds how long the report may wait (`null`: a host without the line).
+    this.outbox.enqueue(input, this.line()?.statusWindowMinutes ?? null);
     this.toast.info("Saved", "It will send when you're back online.");
     // Same prefill as a sent report: this is still the line the reader is working on.
     this.preferences.setLastReportedLine(input.lineId);

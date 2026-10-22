@@ -9,15 +9,16 @@ import { OnlineService } from "../network/online.service";
 import { readStorageItem, removeStorageItem, writeStorageItem } from "../util/web-storage.util";
 
 /**
- * How long a queued line status report may wait before it is dropped instead of sent. The backend
- * stamps a report when it ARRIVES (there is no client-supplied time), so a report sent late counts
- * as fresh on the board; capping the wait at the backend's 15-minute status window bounds how
- * stale a counted report can be. Published as the `line-status.queued-report-expiry` metric through
- * `METHODOLOGY_CONSTANTS.REPORT_OUTBOX_MAX_AGE_MINUTES`; the spec pins the two together.
+ * A queued report waits at most its line's own `statusWindowMinutes`, the backend's per-line window
+ * the board counts reports in, recorded when it is queued. The backend stamps a report when it
+ * ARRIVES (there is no client-supplied time), so a late send counts as fresh; the window is the
+ * longest it could still have counted had it arrived on time. This number is a FRONTEND FALLBACK,
+ * not a copy of the backend's window: it applies only when the queuing page did not know the
+ * line's window (a sheet host that passes no `LinePulse`). Published with the rule as the
+ * `line-status.queued-report-expiry` metric through
+ * `METHODOLOGY_CONSTANTS.REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES`; the spec pins the two together.
  */
-export const REPORT_OUTBOX_MAX_AGE_MINUTES = 15;
-
-const MAX_AGE_MS = REPORT_OUTBOX_MAX_AGE_MINUTES * 60_000;
+export const REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES = 15;
 
 /**
  * `localStorage`, not `sessionStorage` and not IndexedDB. The outbox has to survive the tab being
@@ -41,6 +42,11 @@ export interface QueuedLineStatusReport {
   /** `Date.now()` when the rider pressed Submit. */
   queuedAt: number;
   /**
+   * The line's `statusWindowMinutes` when it was queued: the entry is dropped once it is older.
+   * {@link REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES} when the window was not known.
+   */
+  statusWindowMinutes: number;
+  /**
    * The Firebase uid that queued it. Only that account sends it, so a report queued before a
    * sign-out cannot go out under the next account. `null` only where there is no Firebase user,
    * as under the e2e auth override.
@@ -49,7 +55,10 @@ export interface QueuedLineStatusReport {
 }
 
 /** What the line-status sheet hands over: the report without the outbox's bookkeeping. */
-export type LineStatusReportPayload = Omit<QueuedLineStatusReport, "queuedAt" | "uid">;
+export type LineStatusReportPayload = Omit<
+  QueuedLineStatusReport,
+  "queuedAt" | "uid" | "statusWindowMinutes"
+>;
 
 /**
  * Sends one queued report through the same code path as the sheet's Submit. Resolves the payload's
@@ -101,6 +110,7 @@ function toQueuedReport(value: unknown): QueuedLineStatusReport | null {
   const delayMinutes = value["delayMinutes"];
   const notes = value["notes"];
   const uid = value["uid"];
+  const windowMinutes = value["statusWindowMinutes"];
   return {
     lineId,
     status,
@@ -111,8 +121,16 @@ function toQueuedReport(value: unknown): QueuedLineStatusReport | null {
       typeof delayMinutes === "number" && Number.isInteger(delayMinutes) ? delayMinutes : null,
     notes: typeof notes === "string" && notes !== "" ? notes : null,
     queuedAt,
+    statusWindowMinutes: validWindow(windowMinutes),
     uid: typeof uid === "string" && uid !== "" ? uid : null,
   };
+}
+
+/** A usable window in minutes, else the fallback (an unknown window, or storage edited by hand). */
+function validWindow(minutes: unknown): number {
+  return typeof minutes === "number" && Number.isFinite(minutes) && minutes > 0
+    ? minutes
+    : REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES;
 }
 
 /**
@@ -175,8 +193,11 @@ export class ReportOutboxService {
     return this._reports().some((report) => report.lineId === lineId && report.uid === uid);
   }
 
-  /** Queues a report. One entry per line: a newer report for the same line replaces the older. */
-  enqueue(report: LineStatusReportPayload): void {
+  /**
+   * Queues a report. One entry per line: a newer report for the same line replaces the older.
+   * `statusWindowMinutes` is the line's own window from the board, `null` when it is not known.
+   */
+  enqueue(report: LineStatusReportPayload, statusWindowMinutes: number | null): void {
     if (!this.isBrowser) {
       return;
     }
@@ -187,6 +208,7 @@ export class ReportOutboxService {
       delayMinutes: report.delayMinutes,
       notes: report.notes,
       queuedAt: Date.now(),
+      statusWindowMinutes: validWindow(statusWindowMinutes),
       uid: this.currentUid(),
     };
     this.save([...this.load().filter((queued) => queued.lineId !== report.lineId), entry]);
@@ -194,11 +216,11 @@ export class ReportOutboxService {
 
   /**
    * Sends what is waiting, oldest first, and resolves how many went through. A no-op while offline
-   * and while a flush is already running. Entries older than {@link REPORT_OUTBOX_MAX_AGE_MINUTES}
-   * are dropped with a toast first. Then, for the signed-in account only: a failure that
-   * {@link isRetryableSendFailure} accepts keeps the entry and everything after it for the next
-   * try; any other answer (a `GraphQLRequestError`, a payload that is not `ok`, another HTTP error)
-   * drops the entry and toasts why.
+   * and while a flush is already running. Entries older than their line's window
+   * (`statusWindowMinutes`) are dropped first, with a toast to the account that queued them. Then,
+   * for the signed-in account only: a failure that {@link isRetryableSendFailure} accepts keeps the
+   * entry and everything after it for the next try; any other answer (a `GraphQLRequestError`, a
+   * payload that is not `ok`, another HTTP error) drops the entry and toasts why.
    */
   async flush(send: ReportOutboxSender): Promise<number> {
     // The empty check keeps a flush on every board beat down to one storage read.
@@ -230,7 +252,9 @@ export class ReportOutboxService {
     const uid = this.currentUid();
     // Re-read inside the lock: another tab may have sent or replaced entries meanwhile.
     const queued = this.load();
-    const fresh = queued.filter((report) => now - report.queuedAt <= MAX_AGE_MS);
+    const fresh = queued.filter(
+      (report) => now - report.queuedAt <= report.statusWindowMinutes * 60_000,
+    );
     if (fresh.length < queued.length) {
       this.save(fresh);
       // Told only to the account that queued it: on a shared device, the next person signed in
@@ -239,7 +263,7 @@ export class ReportOutboxService {
       if (expired.length > 0) {
         this.toast.info(
           expired.length === 1 ? "Saved report expired" : `${expired.length} saved reports expired`,
-          `A saved report is not sent once it is more than ${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes old. Report again if it still applies.`,
+          "A saved report is not sent once it is older than its line's reporting window. Report again if it still applies.",
         );
       }
     }

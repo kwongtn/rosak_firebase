@@ -9,7 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
 import {
-  REPORT_OUTBOX_MAX_AGE_MINUTES,
   ReportOutboxService,
   parseReportOutbox,
 } from "../../../core/offline/report-outbox.service";
@@ -405,6 +404,8 @@ describe("LineStatusSheetComponent", () => {
         stationIds: ["s2"],
         delayMinutes: 7,
         notes: "Doors stuck open",
+        // The line's own window from the board, so the report expires when that window would.
+        statusWindowMinutes: 30,
         uid: "u1",
       }),
     ]);
@@ -491,7 +492,7 @@ describe("LineStatusSheetComponent", () => {
     note?.querySelector<HTMLButtonElement>("app-info-popover button")?.click();
     fixture.detectChanges();
     expect(root.querySelector('[data-testid="line-status-outbox-popover"]')?.textContent).toContain(
-      `Queued reports expire after ${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes`,
+      "A saved report is sent only while it is younger than its line's reporting window",
     );
 
     window.dispatchEvent(new Event("online"));
@@ -500,13 +501,10 @@ describe("LineStatusSheetComponent", () => {
   });
 
   it("says when this line already has a report waiting to send", async () => {
-    TestBed.inject(ReportOutboxService).enqueue({
-      lineId: "line-1",
-      status: "DELAYED",
-      stationIds: [],
-      delayMinutes: null,
-      notes: null,
-    });
+    TestBed.inject(ReportOutboxService).enqueue(
+      { lineId: "line-1", status: "DELAYED", stationIds: [], delayMinutes: null, notes: null },
+      30,
+    );
 
     await openSheetWithStations();
 

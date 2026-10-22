@@ -12,9 +12,9 @@ import { ToastService } from "../../ui/toast/toast.service";
 import { AuthService } from "../auth/auth.service";
 import { GraphQLRequestError } from "../graphql/graphql-client";
 import { METHODOLOGY_CONSTANTS } from "../methodology/methodology.constants";
-import { metricTooltip } from "../methodology/methodology-render.util";
+import { metricDoc, renderMethodologyCopy } from "../methodology/methodology-render.util";
 import {
-  REPORT_OUTBOX_MAX_AGE_MINUTES,
+  REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES,
   ReportOutboxService,
   isRetryableSendFailure,
   parseReportOutbox,
@@ -25,6 +25,8 @@ import {
 
 const STORAGE_KEY = "rosak:report-outbox:v1";
 const MINUTE = 60_000;
+/** The window the fixtures' lines report in: the backend's, as the board would hand it over. */
+const WINDOW = 15;
 
 function payload(lineId: string, overrides: Partial<LineStatusReportPayload> = {}) {
   return {
@@ -46,6 +48,7 @@ function queued(
   return {
     ...payload(lineId),
     queuedAt: Date.now() - ageMinutes * MINUTE,
+    statusWindowMinutes: WINDOW,
     uid: "u1",
     ...overrides,
   };
@@ -111,25 +114,31 @@ describe("ReportOutboxService", () => {
 
   /* ---- enqueue ---------------------------------------------------------------------------- */
 
-  it("queues a report with the time and the account that queued it", () => {
+  it("queues a report with the time, its line's window and the account that queued it", () => {
     const outbox = service();
     const before = Date.now();
 
-    outbox.enqueue(payload("line-1"));
+    outbox.enqueue(payload("line-1"), 30);
 
     const [entry] = stored();
-    expect(entry).toMatchObject({ ...payload("line-1"), uid: "u1" });
+    expect(entry).toMatchObject({ ...payload("line-1"), statusWindowMinutes: 30, uid: "u1" });
     expect(entry.queuedAt).toBeGreaterThanOrEqual(before);
     expect(entry.queuedAt).toBeLessThanOrEqual(Date.now());
     expect(outbox.reports()).toEqual([entry]);
   });
 
+  it("queues with the fallback window when the page did not know the line's", () => {
+    service().enqueue(payload("line-1"), null);
+
+    expect(stored()[0].statusWindowMinutes).toBe(REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES);
+  });
+
   it("keeps one report per line, the latest", () => {
     const outbox = service();
 
-    outbox.enqueue(payload("line-1", { status: "BUSY" }));
-    outbox.enqueue(payload("line-2"));
-    outbox.enqueue(payload("line-1", { status: "DISRUPTED" }));
+    outbox.enqueue(payload("line-1", { status: "BUSY" }), WINDOW);
+    outbox.enqueue(payload("line-2"), WINDOW);
+    outbox.enqueue(payload("line-1", { status: "DISRUPTED" }), WINDOW);
 
     expect(stored().map((entry) => [entry.lineId, entry.status])).toEqual([
       ["line-2", "DELAYED"],
@@ -170,8 +179,8 @@ describe("ReportOutboxService", () => {
     );
   });
 
-  it(`drops reports older than ${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes with a toast, and sends the rest`, async () => {
-    store([queued("line-1", REPORT_OUTBOX_MAX_AGE_MINUTES + 1), queued("line-2", 3)]);
+  it("drops reports older than their line's window with a toast, and sends the rest", async () => {
+    store([queued("line-1", WINDOW + 1), queued("line-2", 3)]);
     const send = vi.fn<ReportOutboxSender>(async () => true);
 
     const sent = await service().flush(send);
@@ -181,12 +190,25 @@ describe("ReportOutboxService", () => {
     expect(send.mock.calls[0][0].lineId).toBe("line-2");
     expect(toast.info).toHaveBeenCalledExactlyOnceWith(
       "Saved report expired",
-      `A saved report is not sent once it is more than ${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes old. Report again if it still applies.`,
+      "A saved report is not sent once it is older than its line's reporting window. Report again if it still applies.",
     );
     expect(toast.success).toHaveBeenCalledExactlyOnceWith(
       "Saved report sent",
       "Thanks for keeping the community informed.",
     );
+  });
+
+  it("expires each report against its own line's window, not one number for all", async () => {
+    store([
+      queued("line-1", 20, { statusWindowMinutes: 30 }),
+      queued("line-2", 20, { statusWindowMinutes: 15 }),
+    ]);
+    const send = vi.fn<ReportOutboxSender>(async () => true);
+
+    await service().flush(send);
+
+    expect(send.mock.calls.map(([report]) => report.lineId)).toEqual(["line-1"]);
+    expect(toast.info).toHaveBeenCalledExactlyOnceWith("Saved report expired", expect.any(String));
   });
 
   it("drops a report the server refuses, toasts the server's message, and goes on", async () => {
@@ -280,7 +302,7 @@ describe("ReportOutboxService", () => {
   });
 
   it("does nothing while offline, not even expiring", async () => {
-    store([queued("line-1", REPORT_OUTBOX_MAX_AGE_MINUTES + 5), queued("line-2", 1)]);
+    store([queued("line-1", WINDOW + 5), queued("line-2", 1)]);
     const outbox = service();
     goOffline();
     const send = vi.fn<ReportOutboxSender>(async () => true);
@@ -296,7 +318,7 @@ describe("ReportOutboxService", () => {
   it("sends nothing while logged out, keeping fresh reports and still dropping expired ones", async () => {
     isLoggedIn.set(false);
     user.set(null);
-    store([queued("line-1", REPORT_OUTBOX_MAX_AGE_MINUTES + 1), queued("line-2", 1)]);
+    store([queued("line-1", WINDOW + 1), queued("line-2", 1)]);
     const send = vi.fn<ReportOutboxSender>(async () => true);
 
     const sent = await service().flush(send);
@@ -310,9 +332,9 @@ describe("ReportOutboxService", () => {
 
   it("tells only the account that queued a report that it expired", async () => {
     store([
-      queued("line-1", REPORT_OUTBOX_MAX_AGE_MINUTES + 1, { uid: "someone-else" }),
-      queued("line-2", REPORT_OUTBOX_MAX_AGE_MINUTES + 2),
-      queued("line-3", REPORT_OUTBOX_MAX_AGE_MINUTES + 3),
+      queued("line-1", WINDOW + 1, { uid: "someone-else" }),
+      queued("line-2", WINDOW + 2),
+      queued("line-3", WINDOW + 3),
     ]);
 
     await service().flush(async () => true);
@@ -320,7 +342,7 @@ describe("ReportOutboxService", () => {
     expect(stored()).toEqual([]);
     expect(toast.info).toHaveBeenCalledExactlyOnceWith(
       "2 saved reports expired",
-      expect.stringContaining(`${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes`),
+      expect.stringContaining("older than its line's reporting window"),
     );
   });
 
@@ -357,7 +379,7 @@ describe("ReportOutboxService", () => {
     store([queued("line-1", 4, { status: "BUSY" })]);
     const outbox = service();
     const send = vi.fn<ReportOutboxSender>(async () => {
-      outbox.enqueue(payload("line-1", { status: "DISRUPTED" }));
+      outbox.enqueue(payload("line-1", { status: "DISRUPTED" }), WINDOW);
       return true;
     });
 
@@ -445,13 +467,19 @@ describe("ReportOutboxService", () => {
 
   it("drops unreadable entries, keeps the newer of two for one line, and sorts oldest first", () => {
     const raw = JSON.stringify([
-      { lineId: "line-2", status: "BUSY", queuedAt: 300, uid: "u1" },
+      { lineId: "line-2", status: "BUSY", queuedAt: 300, uid: "u1", statusWindowMinutes: 30 },
       { lineId: "", status: "BUSY", queuedAt: 100 },
       { lineId: "line-3", status: "", queuedAt: 100 },
       { lineId: "line-4", status: "BUSY", queuedAt: "yesterday" },
       "not an entry",
       { lineId: "line-1", status: "BUSY", queuedAt: 200, stationIds: ["s1", 2], notes: "" },
-      { lineId: "line-1", status: "CROWDED", queuedAt: 250, delayMinutes: 2.5 },
+      {
+        lineId: "line-1",
+        status: "CROWDED",
+        queuedAt: 250,
+        delayMinutes: 2.5,
+        statusWindowMinutes: 0,
+      },
     ]);
 
     expect(parseReportOutbox(raw)).toEqual([
@@ -462,6 +490,8 @@ describe("ReportOutboxService", () => {
         delayMinutes: null,
         notes: null,
         queuedAt: 250,
+        // A window that is missing or unusable reads as the fallback.
+        statusWindowMinutes: REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES,
         uid: null,
       },
       {
@@ -471,6 +501,7 @@ describe("ReportOutboxService", () => {
         delayMinutes: null,
         notes: null,
         queuedAt: 300,
+        statusWindowMinutes: 30,
         uid: "u1",
       },
     ]);
@@ -478,14 +509,14 @@ describe("ReportOutboxService", () => {
 
   /* ---- the published rule ------------------------------------------------------------------ */
 
-  it("publishes the expiry once, and the tooltip names that same number", () => {
-    // One number, two readers: the outbox compares with it and the registry publishes it.
-    expect(METHODOLOGY_CONSTANTS["REPORT_OUTBOX_MAX_AGE_MINUTES"]).toEqual({
-      value: REPORT_OUTBOX_MAX_AGE_MINUTES,
+  it("publishes the fallback window once, and the rule's definition names that same number", () => {
+    // One number, two readers: the outbox falls back to it and the registry publishes it.
+    expect(METHODOLOGY_CONSTANTS["REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES"]).toEqual({
+      value: REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES,
       source: "LINE_STATUS_DERIVE.md",
     });
-    expect(metricTooltip("line-status.queued-report-expiry")).toContain(
-      `${REPORT_OUTBOX_MAX_AGE_MINUTES} minutes`,
-    );
+    expect(
+      renderMethodologyCopy(metricDoc("line-status.queued-report-expiry").definition),
+    ).toContain(`${REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES} minutes if the page did not know`);
   });
 });

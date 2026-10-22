@@ -98,6 +98,7 @@ describe("provideReportOutboxFlush", () => {
       delayMinutes: 5,
       notes: "Held at KL Sentral",
       queuedAt: Date.now(),
+      statusWindowMinutes: 15,
       uid: "u1",
     };
 
