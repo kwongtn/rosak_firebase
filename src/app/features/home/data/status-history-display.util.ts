@@ -195,7 +195,7 @@ export function historySummaryLabel(
   const peak = busiestBucket(buckets);
   const when = peak ? ` Busiest hour ${serviceHourRangeLabel(peak.hourStart, peak.hourEnd)}.` : "";
   const serviceDay = `${serviceHourLabel(buckets[0].hourStart)}:00 to ${serviceHourLabel(buckets[buckets.length - 1].hourStart)}:00`;
-  return `${scope} · service day ${serviceDay} · ${reportsPhrase(total)} in ${hours} of ${HISTORY_BUCKETS_PER_DAY} hours.${when}`;
+  return `${scope} · service day ${serviceDay} · ${reportsPhrase(total)} in ${hours} of ${buckets.length} hours.${when}`;
 }
 
 /**
