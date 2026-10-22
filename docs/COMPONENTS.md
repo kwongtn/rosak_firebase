@@ -65,7 +65,7 @@ buttons, the console incident Close buttons (`insiden/links`, `insiden/pending`)
 overrides its defaults through `hlm()`. It needs `aria-label` or `aria-labelledby` and logs a dev-mode
 `console.warn` without one; `hlmBtn size="icon"` stays the bordered/filled form. There is no Helm primitive yet for
 dropdown menu panels, segmented filter chips or dashed empty-state boxes: those stay hand-written class strings
-(and `tracker-info-panel` and `media-viewer` still carry their own icon-button strings).
+(and `media-viewer` still carries its own icon-button string).
 
 `HlmCard`, `HlmCardContent`, `HlmSkeleton` and `HlmTr` merge a consumer `class`
 through `hlm()`, so a `gap-3 p-4` or `rounded-full` on them wins; the other card and table parts keep

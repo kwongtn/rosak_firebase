@@ -15,6 +15,7 @@ import { observeHeight } from "../../../core/dom/observe-height";
 import { downloadCsv, toCsv } from "../../../core/export/csv.util";
 import { escapeHtml } from "../../../core/util/escape-html.util";
 import { HlmButton } from "../../../ui/button/button";
+import { HlmIconButton } from "../../../ui/icon-button/icon-button";
 import { HlmSheet, HlmSheetBody, HlmSheetHeader } from "../../../ui/sheet/sheet";
 import { GtfsRealtimeService } from "../data/gtfs-realtime.service";
 import { GtfsStaticService } from "../data/gtfs-static.service";
@@ -75,7 +76,7 @@ function highlightJson(json: string): string {
  */
 @Component({
   selector: "app-tracker-info-panel",
-  imports: [HlmSheet, HlmSheetHeader, HlmSheetBody, HlmButton],
+  imports: [HlmSheet, HlmSheetHeader, HlmSheetBody, HlmButton, HlmIconButton],
   template: `
     <hlm-sheet
       [open]="open()"
@@ -86,8 +87,7 @@ function highlightJson(json: string): string {
         <h2 class="text-base font-semibold">{{ label() }}</h2>
         <div class="flex shrink-0 items-center gap-1">
           <button
-            type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            hlmIconBtn
             [attr.aria-label]="fullscreen() ? 'Exit full screen' : 'Full screen'"
             [title]="fullscreen() ? 'Exit full screen' : 'Full screen'"
             (click)="fullscreen.set(!fullscreen())"
@@ -125,8 +125,8 @@ function highlightJson(json: string): string {
             }
           </button>
           <button
-            type="button"
-            class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            hlmIconBtn
+            class="-mr-1.5"
             aria-label="Close"
             title="Close"
             (click)="openChange.emit(false)"
