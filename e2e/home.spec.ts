@@ -652,6 +652,43 @@ test.describe("community front page", () => {
     );
   });
 
+  test("USER: a report filed offline is queued, then sent with the token when the network returns", async ({
+    context,
+    page,
+  }) => {
+    const token = await loginAs(page);
+    await configureHome({
+      FrontPageLines: { lines: [KJL_LINE] },
+      Feed: feedPage(),
+      SubmitLineStatusReport: { submitLineStatusReport: { ok: true, id: 778 } },
+    });
+
+    await page.goto("/");
+
+    const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
+    await kjl.getByTestId("line-row-report").click();
+    await page.getByTestId("status-option-CROWDED").click();
+
+    await context.setOffline(true);
+    await expect(page.getByTestId("line-status-outbox-note")).toBeVisible();
+    await page.getByTestId("submit-line-status-report").click();
+
+    await expect(page.getByText("It will send when you're back online.")).toBeVisible();
+    expect((await recordedCalls()).map((c) => c.operationName)).not.toContain(
+      "SubmitLineStatusReport",
+    );
+
+    await context.setOffline(false);
+    await expect
+      .poll(async () => (await recordedCalls()).map((c) => c.operationName))
+      .toContain("SubmitLineStatusReport");
+    const sent = (await recordedCalls()).find((c) => c.operationName === "SubmitLineStatusReport");
+    expect(sent?.authKey).toBe(token);
+    expect(sent?.variables).toEqual({
+      input: { lineId: "1", status: "CROWDED", stationIds: [], delayMinutes: null, notes: null },
+    });
+  });
+
   test("VISITOR: expanding a line row lazily loads the hourly chart, the typical week and reports", async ({
     page,
   }) => {
