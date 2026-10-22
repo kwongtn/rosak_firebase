@@ -415,8 +415,9 @@ dependencies; "Extend" is the primary extension point. Full detail is in each li
   newest 10 others, each linking to its day on `/insiden`), the rider reports that name it among each
   serving line's newest 10 (a browser-only read), and its lifts and escalators with their status.
   The tab and the share tags are titled after the station, and an unknown id renders the 404 page.
-  Every station name in the app links here: incident cards, the report station strip of an expanded
-  line on the front page, spotting history origins and destinations, and the line page's assets tab.
+  Station names in incident cards, the report station strip of an expanded line on the front page,
+  spotting history origins and destinations, and the line page's assets tab link here (the station
+  names inside a line card's report rows are still plain text).
   - Deps: `graphqlResource`, `Title`/`Meta`, `RouterLink`, domain-ui `line-status-badge` and
     `asset-status-badge`, `NotFoundPage`, home's incident and passenger-status utils, spotting's
     `humanizeSince` and `ASSET_TYPE_LABEL`, the methodology registry (`incidents.station`,

@@ -2,7 +2,7 @@
 
 ## 📌 Purpose & Scope
 
-- **Core Responsibility:** The public `/station/:id` page. Riders think in stations ("Is KL Sentral OK?"), and this is the one page organised around one. It shows the station's name, the lines that serve it as chips with their current status, the approved incidents tagged with it (those in effect now, then the newest of the rest, each linking to its day on `/insiden`), the rider status reports that name it among each serving line's newest, and its lifts and escalators with their status. Every station name elsewhere in the app links here (see Inbound links).
+- **Core Responsibility:** The public `/station/:id` page. Riders think in stations ("Is KL Sentral OK?"), and this is the one page organised around one. It shows the station's name, the lines that serve it as chips with their current status, the approved incidents tagged with it (those in effect now, then the newest of the rest, each linking to its day on `/insiden`), the rider status reports that name it among each serving line's newest, and its lifts and escalators with their status. Station names in incident cards, the front page's report station strip, spotting history and the line page's assets tab link here (see Inbound links); the names inside a line card's report rows do not yet.
 - **Domain/Layer:** Angular Presentation (standalone, lazy-routed page, a `data/` layer of one query module and one pure utility). Read-only: it consumes existing GraphQL fields and sends no mutation.
 
 ## 🔌 Interface & Data Flow
