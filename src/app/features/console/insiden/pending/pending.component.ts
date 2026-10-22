@@ -31,6 +31,7 @@ import {
   moveChronology,
   removeChronology,
   toggleCollapsed,
+  updateChronology,
   type ChronologyDraft,
 } from "../../../insiden/incident-form/chronology-list.util";
 import {
@@ -593,11 +594,9 @@ export class PendingIncidentsComponent {
   }
 
   /** A field edit from the chronology editor — a new draft object in a new list, never an
-   * in-place write, so the signal notifies. */
+   * in-place write, so the signal notifies (`updateChronology`, shared with the public form). */
   protected patchChronology({ key, field, value }: ChronologyPatch): void {
-    this.chronologies.update((list) =>
-      list.map((c) => (c.key === key ? { ...c, [field]: value } : c)),
-    );
+    this.chronologies.update((list) => updateChronology(list, key, { [field]: value }));
   }
 
   /** "Summarize Incident" — asks the Gemini-backed summarizeIncident callable to condense
