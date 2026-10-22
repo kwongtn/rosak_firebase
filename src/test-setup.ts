@@ -10,6 +10,11 @@
  * A plain assignment on purpose — NOT `vi.stubGlobal` — so a spec's own `vi.unstubAllGlobals()`
  * in `afterEach` cannot tear the polyfill back out from under the rest of its file.
  *
+ * Reset before every test: the toast list (`toastState` of `@spartan-ng/brain/sonner`). It is a
+ * process-wide store in `node_modules`, so toasts one spec file raises (`app.spec.ts` raises three)
+ * outlive it and reach the next file in the worker, where `line-overview.page.spec.ts` counts them.
+ * Raising a toast is ordinary app behaviour, so specs are not asked to clean up after it.
+ *
  * Deliberately NOT installed:
  * - `matchMedia` — `info-popover.spec.ts` asserts the ABSENT-`matchMedia` path ("treats a missing
  *   matchMedia as no hover"), and half a dozen specs drive `matches` per test through their own
@@ -19,6 +24,9 @@
  *   their stubs are not duplicates (and `ad-slot.component.spec.ts` alone does not meet the
  *   ≥2-spec threshold).
  */
+import { toastState } from "@spartan-ng/brain/sonner";
+import { beforeEach } from "vitest";
+
 class NoopResizeObserver implements ResizeObserver {
   constructor(_callback: ResizeObserverCallback) {}
   observe(_target: Element, _options?: ResizeObserverOptions): void {}
@@ -29,3 +37,7 @@ class NoopResizeObserver implements ResizeObserver {
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = NoopResizeObserver;
 }
+
+beforeEach(() => {
+  toastState.reset();
+});
