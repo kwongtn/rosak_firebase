@@ -83,8 +83,9 @@ third-party GTFS-realtime feeds for the tracker.
   `core/sentry/{replay,feedback}-integration.ts`; `scripts/check-sentry-lazy.mjs` runs at the end of
   `npm run generate` (so on start, build, test and e2e, and in CI) and fails otherwise.
 - **Never hand-edit** `src/build-info.ts`, `src/environments/*.generated.ts`,
-  `public/favicon.{svg,ico}` — `scripts/*.mjs` regenerate them on every `prestart`/`prebuild`.
-  Config changes belong in `apphosting.yaml` / `apphosting.staging.yaml`.
+  `public/favicon.{svg,ico}` and `public/firebase-messaging-sw.js`: `scripts/*.mjs` regenerate
+  them on every `prestart`/`prebuild`. Config changes belong in `apphosting.yaml` /
+  `apphosting.staging.yaml`.
 
 **Typing & error handling**
 
