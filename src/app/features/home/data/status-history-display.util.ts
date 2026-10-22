@@ -12,10 +12,12 @@ import { PASSENGER_LABEL, passengerBarClass } from "./passenger-status.util";
  * function is total, Angular-free and defensive about a null `dominantStatus` (which the backend
  * sends for an hour nobody reported anything about) because `strictNullChecks` is OFF.
  *
- * 🔴 `SERVICE_DAY_START_HOUR` is a DISPLAY fact here, not a variable to send. The three widgets read
- * buckets whose range the backend already chose (its own `dayStartHour` default of 3), so this
- * constant exists to LABEL that range and nothing else. Baking it into query variables is exactly
- * what the history documents refuse to do — see `NETWORK_STATUS_HISTORY_QUERY`.
+ * 🔴 `SERVICE_DAY_START_HOUR` labels the range the backend bucketed, and it is sent by exactly two
+ * reads, both per line: today's hourly chart (`lineStatusHistory`) and the typical week
+ * (`lineStatusWeekProfile`). Each sends THIS constant, so the columns they draw start at the hour
+ * they asked for and the two stay in step. The network sparkline and the Pro heat grid read buckets
+ * in the backend's own range (its `dayStartHour` default of 3) and send nothing: baking it into
+ * those variables is what their documents refuse to do — see `NETWORK_STATUS_HISTORY_QUERY`.
  */
 
 /** Buckets in one community service day: the backend zero-fills 03:00 → 02:00. */

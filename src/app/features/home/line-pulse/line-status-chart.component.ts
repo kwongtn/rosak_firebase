@@ -14,10 +14,8 @@ import {
   PASSENGER_LABEL,
   PASSENGER_NO_DATA_BAR_CLASS,
 } from "../data/passenger-status.util";
+import { SERVICE_DAY_START_HOUR } from "../data/status-history-display.util";
 import { PASSENGER_SCALE } from "../data/status-info.util";
-
-/** The community service day runs 03:00 → 02:00, so that's the hour the backend buckets from. */
-const SERVICE_DAY_START_HOUR = 3;
 
 /** Bucket hours are Malaysia service hours — formatted in MYT so every viewer reads the same day. */
 const HOUR_LABEL = new Intl.DateTimeFormat("en-GB", {
