@@ -2642,6 +2642,140 @@ describe("HomeStore: the Pro filters and the incidents read", () => {
     expect(store.noticesFor("1").map((i) => i.id)).toEqual(["now"]);
     expect(store.plannedWorksFor("1").map((i) => i.id)).toEqual(["soon"]);
   });
+
+  /* ---- the beat: a chip must not outlive its incident ---- */
+
+  /** Answers the three page-critical reads a beat re-issues (lines, Today, Last Week) with empty pages. */
+  function answerPageReads(): void {
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+  }
+
+  /** A store with both incident reads asked for and answered: `now` ongoing, `soon` planned, line 1. */
+  async function storeWithBothReadsAnswered(): Promise<HomeStore> {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    store.requestPlannedWorksRead();
+    await afterVariablesChange();
+    httpMock
+      .expectOne(ongoingRead)
+      .flush({ data: { calendarIncidents: [incident("now", ["1"])] } });
+    httpMock
+      .expectOne(plannedRead)
+      .flush({ data: { calendarIncidents: [incident("soon", ["1"])] } });
+    await afterVariablesChange();
+    return store;
+  }
+
+  it("re-reads both incident lists on the poll beat, so a chip goes when its incident ends", async () => {
+    // The chip says an incident is running NOW. Without a refresh a tab left open would keep saying so
+    // beside line statuses that are redrawn every 30 seconds.
+    const store = await storeWithBothReadsAnswered();
+    expect(store.noticesFor("1").map((i) => i.id)).toEqual(["now"]);
+
+    store.reloadFirstPages();
+    TestBed.tick();
+
+    // The same literal variables as the first read: the beat re-sends them, it computes nothing.
+    const ongoing = httpMock.expectOne(ongoingRead);
+    const planned = httpMock.expectOne(plannedRead);
+    expect(ongoing.request.body.variables).toEqual({
+      filters: { status: "LIVE", activeNow: true },
+      order: { startDatetime: "DESC" },
+    });
+    expect(planned.request.body.variables).toEqual({
+      filters: { status: "LIVE", upcomingWithinDays: 7 },
+      order: { startDatetime: "ASC" },
+    });
+    answerPageReads();
+    ongoing.flush({ data: { calendarIncidents: [incident("later", ["2"])] } });
+    planned.flush({ data: { calendarIncidents: [] } });
+    await afterVariablesChange();
+
+    expect(store.noticesFor("1")).toEqual([]);
+    expect(store.noticesFor("2").map((i) => i.id)).toEqual(["later"]);
+    expect(store.plannedWorksFor("1")).toEqual([]);
+  });
+
+  it("re-reads only the incident list a surface asked for", async () => {
+    const store = await startedWith([]);
+    store.requestIncidentsRead();
+    await afterVariablesChange();
+    httpMock.expectOne(ongoingRead).flush({ data: { calendarIncidents: [] } });
+    await afterVariablesChange();
+
+    store.reloadFirstPages();
+    TestBed.tick();
+
+    // Planned works were never asked for (nothing is pinned), so the beat does not send them either.
+    expect(httpMock.match(plannedRead)).toHaveLength(0);
+    answerPageReads();
+    httpMock.expectOne(ongoingRead).flush({ data: { calendarIncidents: [] } });
+  });
+
+  it("sends no incident read on the beat before any surface has asked", async () => {
+    const store = await startedWith([]);
+
+    store.reloadFirstPages();
+    TestBed.tick();
+
+    expect(httpMock.match(isIncidentsRead)).toHaveLength(0);
+    answerPageReads();
+  });
+
+  it("leaves both incident reads out of reloadAll: a submit or an edit changes no incident", async () => {
+    const store = await storeWithBothReadsAnswered();
+
+    store.reloadAll();
+    TestBed.tick();
+
+    expect(httpMock.match(isIncidentsRead)).toHaveLength(0);
+    linesRequest().flush({ data: { lines: [] } });
+    feedRequest().flush({ data: feedData([], false, null) });
+    lastWeekRequest().flush({ data: feedData([], false, null) });
+  });
+
+  it("keeps the last good Notices through a FAILED beat refresh, and leaves the page flags alone", async () => {
+    // One transient failure of a 30s beat must not blank every Notice on the board, as it does not blank
+    // the lines beside them. The failure still shows in `incidentsFailed`, which is the Pro widget's own
+    // hide signal; the chips do not read it.
+    const store = await storeWithBothReadsAnswered();
+
+    store.reloadFirstPages();
+    TestBed.tick();
+    const ongoing = httpMock.expectOne(ongoingRead);
+    const planned = httpMock.expectOne(plannedRead);
+    answerPageReads();
+    ongoing.flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    planned.flush({ message: "boom" }, { status: 500, statusText: "Server Error" });
+    await afterVariablesChange();
+    await Promise.resolve();
+
+    expect(store.incidentsFailed()).toBe(true);
+    expect(store.noticesFor("1").map((i) => i.id)).toEqual(["now"]);
+    expect(store.plannedWorksFor("1").map((i) => i.id)).toEqual(["soon"]);
+    expect(store.hasError()).toBe(false);
+    expect(store.isRefreshing()).toBe(false);
+  });
+
+  it("keeps an in-flight incident refresh out of isRefreshing, so 'Updating' tracks the page's data", async () => {
+    const store = await storeWithBothReadsAnswered();
+
+    store.reloadFirstPages();
+    TestBed.tick();
+    const ongoing = httpMock.expectOne(ongoingRead);
+    const planned = httpMock.expectOne(plannedRead);
+    answerPageReads();
+    await afterVariablesChange();
+
+    // The three page-critical reads are done and the two incident reads are still on the wire.
+    expect(store.isRefreshing()).toBe(false);
+    expect(store.noticesFor("1").map((i) => i.id)).toEqual(["now"]);
+
+    ongoing.flush({ data: { calendarIncidents: [] } });
+    planned.flush({ data: { calendarIncidents: [] } });
+  });
 });
 
 describe("HomeStore: the official-notices archive read", () => {

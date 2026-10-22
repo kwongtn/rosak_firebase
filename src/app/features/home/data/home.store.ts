@@ -544,7 +544,8 @@ export class HomeStore {
    * `incidentsResource` is gated on an explicit opt-in, feeds {@link recentIncidents} /
    * {@link noticesFor} / {@link incidentsFailed}, and appears in NEITHER `hasError` NOR
    * `isRefreshing` — a chart-and-list pair must not be able to hold the refresh confirmation open or
-   * replace the board with an error banner. A failed read hides the CHIPS, never the line rows.
+   * replace the board with an error banner. A read that cannot answer draws no chips; it never costs
+   * the reader a line row.
    *
    * Two surfaces opt in (the Pro widget and the network board) and they share this ONE resource, so
    * a Pro reader whose board and widget both ask still sends one request.
@@ -554,8 +555,10 @@ export class HomeStore {
    * same object and the TransferState payload is reused. 🔴 They carry `status: LIVE`: the root
    * `calendarIncidents` field would otherwise hand drafts to this public page.
    *
-   * Like the official-notices archive it is absent from `reloadAll()` and from the beat: it is read
-   * once per store, when its surface first asks.
+   * 🔴 **The beat re-reads it** (`reloadFirstPages()`, once a surface has asked), so a Notice for an
+   * incident that has ended goes away with the line statuses around it instead of staying until the
+   * tab is closed. It stays out of `reloadAll()`: a submitted link, report or edit changes no incident,
+   * and the resource retries a failed read on its own backoff.
    */
   private readonly _incidentsRequested = signal(false);
 
@@ -580,17 +583,16 @@ export class HomeStore {
    *
    * The Pro widget shows a slice of this ({@link recentIncidents}); the board's chips group the WHOLE
    * list ({@link noticesFor}), because a line's incident can sit past the widget's slice.
+   *
+   * 🔴 **A failed refresh KEEPS the last good list.** `data()` is total and holds the last answer to
+   * the same request through a failed beat, exactly as `lines()` does beside the retry banner, so one
+   * transient failure of a 30s beat must not blank every Notice on the board. A read that has never
+   * answered has no data and so no chips. The Pro widget decides for itself whether to hide on
+   * {@link incidentsFailed}; that is its own check, not this list's.
    */
-  private readonly ongoingIncidents = computed<HomeIncidentItem[]>(() => {
-    // 🔴 **The failure flag wins over the payload, on purpose.** `data()` is total and keeps the last
-    // good answer through a failed refresh, but a supporting widget that cannot refresh hides ITSELF
-    // rather than draw old rows as current — the same rule the sparkline documents for the history
-    // reads. The widget's own visibility check is a belt-and-braces second gate.
-    if (this.incidentsFailed()) {
-      return [];
-    }
-    return this.incidentsResource.data()?.calendarIncidents ?? [];
-  });
+  private readonly ongoingIncidents = computed<HomeIncidentItem[]>(
+    () => this.incidentsResource.data()?.calendarIncidents ?? [],
+  );
 
   /**
    * The newest ongoing incidents, capped at {@link PRO_INCIDENT_LIMIT}.
@@ -610,9 +612,9 @@ export class HomeStore {
 
   /**
    * The ongoing incidents tagged with this line, newest first — the board's Notice chips. A shared
-   * empty array for a line with none, and while the read is loading or failed: a row draws nothing
-   * for an unanswered read (no skeleton), so "no answer yet" and "no incident" look the same on
-   * purpose. O(1) per row: the grouping is one computed over the read, like `linesHistoryFor`.
+   * empty array for a line with none, and while the first read is in flight or when it failed: a row
+   * draws nothing for an unanswered read (no skeleton), so "no answer yet" and "no incident" look the
+   * same on purpose. O(1) per row: the grouping is one computed over the read, like `linesHistoryFor`.
    */
   noticesFor(lineId: string): readonly HomeIncidentItem[] {
     return this.noticesByLine().get(lineId) ?? NO_INCIDENTS;
@@ -622,15 +624,15 @@ export class HomeStore {
    * The board's PLANNED WORKS read — one more lazy, ISOLATED read
    * ------------------------------------------------------------------ *
    *
-   * Same arrangement again: opt-in, hides ITSELF on failure, in neither `hasError` nor `isRefreshing`,
-   * absent from `reloadAll()` and the beat. It asks for LIVE incidents that START within the next
-   * seven days ({@link HOME_PLANNED_WORKS_VARS}, literal variables, the backend counts the days) and
-   * only the My lines rows draw it, so the board opts in once a pinned line exists — an unpinned
-   * reader never sends it.
+   * Same arrangement again: opt-in, in neither `hasError` nor `isRefreshing`, re-read by the beat once
+   * asked for and absent from `reloadAll()`, and a failed refresh keeps the last good list. It asks for
+   * LIVE incidents that START within the next seven days ({@link HOME_PLANNED_WORKS_VARS}, literal
+   * variables, the backend counts the days) and only a pinned line draws it, so the board opts in once
+   * a pinned line is on screen — an unpinned reader never sends it.
    */
   private readonly _plannedWorksRequested = signal(false);
 
-  /** Asks the store to read the planned-works list. Called by the network board once a line is pinned. */
+  /** Asks the store to read the planned-works list. Called by the network board once a pinned line is drawn. */
   requestPlannedWorksRead(): void {
     this._plannedWorksRequested.set(true);
   }
@@ -645,19 +647,14 @@ export class HomeStore {
     return { query: HOME_RECENT_INCIDENTS_QUERY, variables: HOME_PLANNED_WORKS_VARS };
   });
 
-  /** True when the planned-works read failed — hides its chips only, never `hasError`. */
-  private readonly plannedWorksFailed = this.plannedWorksResource.hasError;
-
-  private readonly plannedWorksByLine = computed(() => {
-    // The failure flag wins over the payload here too (see `ongoingIncidents`).
-    if (this.plannedWorksFailed()) {
-      return groupIncidentsByLine([]);
-    }
-    return groupIncidentsByLine(this.plannedWorksResource.data()?.calendarIncidents ?? []);
-  });
+  /** Grouped like the ongoing list, and like it keeps the last good answer through a failed refresh
+   *  (see `ongoingIncidents`). Nothing reads this read's failure flag, so it cannot reach `hasError`. */
+  private readonly plannedWorksByLine = computed(() =>
+    groupIncidentsByLine(this.plannedWorksResource.data()?.calendarIncidents ?? []),
+  );
 
   /** The LIVE works starting within seven days that are tagged with this line, soonest first. A shared
-   *  empty array when none, while loading, and on failure. */
+   *  empty array when none, while the first read is in flight and when it failed. */
   plannedWorksFor(lineId: string): readonly HomeIncidentItem[] {
     return this.plannedWorksByLine().get(lineId) ?? NO_INCIDENTS;
   }
@@ -1165,7 +1162,8 @@ export class HomeStore {
   /**
    * The poll beat's refresh (and the manual click's — the countdown control drives the same store
    * beat): re-reads page one of ALL THREE resources and bumps `linesRefreshTick` for the open line
-   * accordions.
+   * accordions. The incident lists behind the board's chips ride the same beat once a surface has
+   * asked for them (see {@link reloadIncidentsIfRequested}).
    *
    * Every appended-page signal is deliberately LEFT ALONE. Dropping them would be simplest and
    * would also be wrong at a 30-second cadence: the reader's Load More progress would be thrown
@@ -1186,6 +1184,27 @@ export class HomeStore {
     this.linesRefreshTick.update((tick) => tick + 1);
     this.feedResource.reload();
     this.reloadLastWeekIfRequested();
+    this.reloadIncidentsIfRequested();
+  }
+
+  /**
+   * Re-reads the two incident lists behind the board's Notice and Planned works chips, for each one a
+   * surface has asked for. The beat's job is "the page is current": a chip that says an incident is
+   * running now must go away when it ends, next to line statuses that are redrawn every 30 seconds.
+   *
+   * Only an asked-for read is reloaded (an unrequested resource is inert, and the explicit gate makes
+   * that the stated contract). `reload()` keeps the last good list on screen while it runs, and neither
+   * read is part of `isRefreshing`, so the "Updating" label tracks the three page-critical reads only.
+   * `reloadAll()` leaves both alone: nothing it is called for (a submit, an edit, a report) changes an
+   * approved incident.
+   */
+  private reloadIncidentsIfRequested(): void {
+    if (this._incidentsRequested()) {
+      this.incidentsResource.reload();
+    }
+    if (this._plannedWorksRequested()) {
+      this.plannedWorksResource.reload();
+    }
   }
 
   /**

@@ -50,8 +50,9 @@ export interface LineChip {
  * in that order, and how many more there are (`more`, which the board links to `/insiden`).
  *
  * `more` counts everything NOT drawn, so "+N" is exact however long either list is. An incident that
- * is in both lists (it started between the two reads, which are not refreshed together) is drawn once,
- * as the Notice: it is running now, and "planned" would be out of date.
+ * is in both lists (it started between the two reads, which are separate requests that answer at
+ * different moments) is drawn once, as the Notice: it is running now, and "planned" would be out of
+ * date.
  */
 export function pickLineChips(
   notices: readonly HomeIncidentItem[],

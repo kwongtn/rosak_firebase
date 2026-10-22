@@ -145,8 +145,8 @@ describe("pickLineChips", () => {
   });
 
   it("draws an incident that is in both lists once, as the notice it now is", () => {
-    // The two reads are not refreshed together, so an incident that has just started can still be in
-    // the planned list from the earlier read.
+    // The two reads answer at different moments, so an incident that has just started can still be in
+    // the planned list from the earlier answer.
     const { chips, more } = pickLineChips([notice("x")], [notice("x"), notice("p")]);
 
     expect(chips.map((chip) => `${chip.kind}:${chip.incident.id}`)).toEqual([
