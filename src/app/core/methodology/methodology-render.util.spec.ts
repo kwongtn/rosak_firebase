@@ -50,6 +50,8 @@ describe("methodology render util: renderMethodologyCopy", () => {
       "HEAT_INTENSITY_STEPS",
       "REPORT_RANKING_TOP_LINES",
       "REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES",
+      "PLANNED_WORKS_WINDOW_DAYS",
+      "LINE_NOTICE_MAX_CHIPS",
     ]);
     expect(METHODOLOGY_CONSTANTS["NEEDS_ATTENTION_PASSENGER_RANK"]).toEqual({
       value: 5,
@@ -84,6 +86,18 @@ describe("methodology render util: renderMethodologyCopy", () => {
     expect(METHODOLOGY_CONSTANTS["REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES"]).toEqual({
       value: 15,
       source: "LINE_STATUS_DERIVE.md",
+    });
+    // The board's Notice / Planned works chips: the window the planned-works read sends (the backend
+    // counts the days) and the display cap per line, published because the chips' popover names both.
+    // `home.queries.spec.ts` pins the window against the variable it is sent as, and
+    // `incident-notices.util.spec.ts` pins the cap against the constant `pickLineChips` slices with.
+    expect(METHODOLOGY_CONSTANTS["PLANNED_WORKS_WINDOW_DAYS"]).toEqual({
+      value: 7,
+      source: "INCIDENT_EPISODES.md",
+    });
+    expect(METHODOLOGY_CONSTANTS["LINE_NOTICE_MAX_CHIPS"]).toEqual({
+      value: 2,
+      source: "INCIDENT_EPISODES.md",
     });
   });
 

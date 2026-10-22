@@ -175,6 +175,15 @@ const REVIEWED_AT_INCIDENT_HISTORY = "2026-10-22";
 const REVIEWED_AT_REPORT_OUTBOX = "2026-10-22";
 
 /**
+ * Bumped when the front page's board gained its Notice / Planned works chips (2026-10-22). They publish
+ * ONE new rule to the `episodes` section: which incidents a line shows (approved ones only, running
+ * now or starting within the planned-works window, at most a few per line). A constant of its own for
+ * the reason every one above has one — sharing a date with an earlier review would let a later bump on
+ * either silently claim the other.
+ */
+const REVIEWED_AT_LINE_NOTICES = "2026-10-22";
+
+/**
  * The eight anchored sections of the page, in render order. Every one is `inProgress: true`:
  * the owning specs' prose has landed but their code has not, so each renders the "in progress"
  * state (naming its spec) rather than any number (METHODOLOGY_DOCS.md lines 31–32, 259–264).
@@ -206,8 +215,9 @@ export const METHODOLOGY_SECTIONS: MethodologySection[] = [
     body: "What counts as one disruption episode is owned by INCIDENT_EPISODES.md; this section renders once that rule ships.",
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
-    // Bumped for `/insiden`'s "Last 12 months" chart: the section now carries its first metric.
-    lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
+    // Bumped for `/insiden`'s "Last 12 months" chart: the section now carries its first metric. Bumped
+    // again for the front page board's Notice / Planned works chips (REVIEWED_AT_LINE_NOTICES).
+    lastReviewed: REVIEWED_AT_LINE_NOTICES,
     inProgress: true,
   },
   {
@@ -677,6 +687,23 @@ export const METRIC_DOCS: MetricDoc[] = [
     ownerRoute: "/insiden",
     sourceSpec: "INCIDENT_EPISODES.md",
     lastReviewed: REVIEWED_AT_INCIDENT_HISTORY,
+  },
+  {
+    // The Notice and Planned works chips on the front page's board
+    // (features/home/line-pulse/line-notices.component.ts). 🔴 Two things a rider cannot read off a chip:
+    // WHICH incidents get one (approved ones only — the incident list also holds drafts) and why a line
+    // can show fewer chips than it has incidents (the cap and the "+N" link). It is an incident-RECORD
+    // rule, so it sits with the other incident entries in the same stopgap section.
+    id: "incidents.line-notices",
+    sectionId: "episodes",
+    title: "Notices and planned works on a line",
+    definition:
+      "A Notice is an approved (live) incident from the incident calendar that is tagged with this line and is running now: it has started and has not ended, or it has no end time yet. Planned works are approved incidents tagged with this line that start within the next {{PLANNED_WORKS_WINDOW_DAYS}} days; they are shown only for lines you have pinned, in the My lines group. Drafts, reports still waiting for approval and rejected ones are never shown. A line shows at most {{LINE_NOTICE_MAX_CHIPS}} chips, Notices before Planned works, and “+N” opens the incident calendar for the rest. A chip opens the calendar on the day the incident starts. Incidents are tagged with lines by the people who report them and approved by moderators, so a Notice is a checked community report, not an operator announcement, and a line with no chip only means that no approved incident is tagged with it.",
+    summary:
+      "Approved incidents tagged with this line that are running now. Planned works, for pinned lines only, start within {{PLANNED_WORKS_WINDOW_DAYS}} days. At most {{LINE_NOTICE_MAX_CHIPS}} chips a line; “+N” opens the calendar.",
+    ownerRoute: "/",
+    sourceSpec: "INCIDENT_EPISODES.md",
+    lastReviewed: REVIEWED_AT_LINE_NOTICES,
   },
   {
     id: "incidents.month-export",

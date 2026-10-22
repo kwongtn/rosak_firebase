@@ -52,6 +52,14 @@ export interface MethodologyConstant {
  * (`core/offline/report-outbox.service.ts`, published as `line-status.queued-report-expiry`). This
  * number applies only when the page that queued the report did not know that window. The service's
  * spec pins this value against the constant the outbox falls back to.
+ *
+ * `PLANNED_WORKS_WINDOW_DAYS` and `LINE_NOTICE_MAX_CHIPS` came with the board's Notice / Planned works
+ * chips (`features/home/line-pulse/line-notices.component.ts`, published as `incidents.line-notices`).
+ * The first is the `upcomingWithinDays` the planned-works read sends (the BACKEND counts the days, so
+ * it is a window this client names rather than measures); the second is the display cap per line. Both
+ * are pinned by the specs next to the code that uses them (`home.queries.spec.ts`,
+ * `incident-notices.util.spec.ts`), so the popover cannot promise a window or a cap the board does not
+ * apply.
  */
 export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   STALE_REVIEW_MONTHS: { value: 6, source: "METHODOLOGY_DOCS.md" },
@@ -62,4 +70,6 @@ export const METHODOLOGY_CONSTANTS: Record<string, MethodologyConstant> = {
   HEAT_INTENSITY_STEPS: { value: 5, source: "LINE_STATUS_DERIVE.md" },
   REPORT_RANKING_TOP_LINES: { value: 5, source: "LINE_STATUS_DERIVE.md" },
   REPORT_OUTBOX_FALLBACK_WINDOW_MINUTES: { value: 15, source: "LINE_STATUS_DERIVE.md" },
+  PLANNED_WORKS_WINDOW_DAYS: { value: 7, source: "INCIDENT_EPISODES.md" },
+  LINE_NOTICE_MAX_CHIPS: { value: 2, source: "INCIDENT_EPISODES.md" },
 };
