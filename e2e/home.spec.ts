@@ -893,7 +893,7 @@ test.describe("community front page", () => {
     const historyCall = (await recordedCalls()).find(
       (call) => call.operationName === "LineStatusHistory",
     );
-    expect(historyCall?.variables).toEqual({ lineId: "1", dayStartHour: 3 });
+    expect(historyCall?.variables).toEqual({ lineId: "1" });
     const reportsCall = (await recordedCalls()).find(
       (call) => call.operationName === "LineStatusReports",
     );
