@@ -90,7 +90,11 @@ export class RtSource {
   }
 
   private tick(): void {
-    const remainingMs = this.nextRefreshAtMs - Date.now();
+    // "Do not refresh" schedules Infinity; Infinity - now and Infinity / Infinity would write
+    // Infinity and NaN into the signals (and NaN into the ring's stroke-dashoffset), so read 0.
+    const remainingMs = Number.isFinite(this.nextRefreshAtMs)
+      ? this.nextRefreshAtMs - Date.now()
+      : 0;
     this.secondsRemaining.set(Math.max(0, remainingMs / 1000));
     this.percentRemaining.set(
       this.scheduledDelayMs > 0
@@ -104,8 +108,8 @@ export class RtSource {
     this.scheduledDelayMs = delayMs;
     this.nextRefreshAtMs = Date.now() + delayMs;
     if (!Number.isFinite(delayMs)) {
-      // "Do not refresh" — leave the countdown at whatever it last showed; there's nothing
-      // further scheduled, so it simply stops ticking down.
+      // "Do not refresh" — nothing further is scheduled, so the next tick settles the
+      // countdown at 0.
       return;
     }
     this.pollTimeout = setTimeout(() => this.refresh(), delayMs);

@@ -27,7 +27,7 @@
 - **Signals only.** No RxJS subjects or NgRx. RxJS appears only as `firstValueFrom(http.get(...))` one-shots in `GtfsStaticService` / `GeojsonStorageService`.
 - **`GtfsRealtimeService`** (root): `sources = signal<Record<string, RtSource>>({})`, one `RtSource` per applied realtime checkbox.
   - Each `RtSource` schedules its own `setTimeout` (not a fixed `setInterval`) and exposes signals `feedEntities`, `isLoading`, `hasLoadedOnce`, `hasError`, `lastErrorMessage`, `secondsRemaining`, `percentRemaining`.
-  - Normal cadence: `refreshIntervalMs` (default 30 s, adjustable live from the layer panel).
+  - Normal cadence: `refreshIntervalMs` (default 30 s, adjustable live from the layer panel). `null` means "Do not refresh": one fetch, no timer, countdown signals read 0, and sources applied later inherit it.
   - On fetch failure: exponential backoff from 5 s, capped at 5 min, independent of the normal cadence.
   - `pauseAll()` / `resumeAll()` stop and restart timers without discarding data. `TrackerShellPage` calls them from its constructor and `ngOnDestroy`, so leaving `/tracker` really stops background polling.
   - Known gap: `pause()` only clears timers, so a fetch already in flight re-arms the poll timer when it lands. `gtfs-realtime.service.spec.ts` pins this with an `it.fails` case (flip it to `it` when the gap is closed).

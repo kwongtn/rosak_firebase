@@ -355,6 +355,21 @@ describe("RtSource", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps the countdown at a finite 0 when the interval is null", async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(okResponse(["v1"])));
+      source = new RtSource({ sourceUrl: URL_A, intervalMs: INTERVAL_MS });
+      source.resume();
+      await flush();
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(source.secondsRemaining()).toBeGreaterThan(0);
+
+      source.setRefreshInterval(null);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(source.secondsRemaining()).toBe(0);
+      expect(source.percentRemaining()).toBe(0);
+    });
+
     it("a number after null starts polling again on the new cadence", async () => {
       fetchMock.mockImplementation(() => Promise.resolve(okResponse(["v1"])));
       source = new RtSource({ sourceUrl: URL_A, intervalMs: null });
