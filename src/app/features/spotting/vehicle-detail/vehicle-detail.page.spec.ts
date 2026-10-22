@@ -9,6 +9,7 @@ import { Router, provideRouter } from "@angular/router";
 import { toastState } from "@spartan-ng/brain/sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AuthService } from "../../../core/auth/auth.service";
 import { ImageUploadService } from "../../../core/upload/image-upload.service";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { SpottingLinesStore } from "../data/spotting-lines.store";
@@ -94,6 +95,8 @@ describe("VehicleDetailPage", () => {
         { provide: SpottingLinesStore, useValue: { lineById: () => LINE } },
         ...(options.realToast ? [] : [{ provide: ToastService, useValue: toast }]),
         { provide: ImageUploadService, useValue: { pendingCount: signal(0) } },
+        // The history asks who is signed in; the page spec has no Firebase to ask.
+        { provide: AuthService, useValue: { isLoggedIn: signal(false), idToken: vi.fn() } },
       ],
     }).compileComponents();
 

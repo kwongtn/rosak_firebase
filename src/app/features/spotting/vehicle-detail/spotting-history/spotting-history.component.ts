@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from "@
 import { DatePipe } from "@angular/common";
 import { NgIcon, provideIcons } from "@ng-icons/core";
 import { lucideCamera } from "@ng-icons/lucide";
+import { AuthService } from "../../../../core/auth/auth.service";
 import { GraphQLClient } from "../../../../core/graphql/graphql-client";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
@@ -39,6 +40,13 @@ interface EventGroup {
  * chip, not a link: `medias` has no filter by spotting, so there is nothing to deep-link to.
  * Month headings are h3 because the card around the list carries the page's h2 (an h4 there skips
  * a level, which axe reports as heading-order).
+ *
+ * `isMine` is the backend's answer to "is this the asking user's entry", and it knows the asker
+ * only from the `firebase-auth-key` header. So a signed-in viewer's requests carry their token (and
+ * skip the SSR transfer cache, see `GraphQLClient.request`), and when the viewer signs in or out
+ * the first page is asked for again and swapped in where it stands. The server never has a
+ * session, and a hard load asks before Firebase has restored one, so those first pages are
+ * anonymous (every `isMine` false) and a restored session upgrades them a moment later.
  */
 @Component({
   selector: "app-spotting-history",
@@ -142,6 +150,14 @@ export class SpottingHistoryComponent {
   readonly vehicleId = input.required<string>();
 
   private readonly graphql = inject(GraphQLClient);
+  private readonly auth = inject(AuthService);
+
+  /**
+   * Counts the page requests started. A response that finds the count moved on is stale (another
+   * vehicle or viewer has been asked for since) and is dropped rather than put in a list it no
+   * longer belongs to.
+   */
+  private latestRequest = 0;
 
   private readonly _eventsByVehicle = signal<Map<string, SpottingEvent[]>>(new Map());
   protected readonly _events = computed(() => this._eventsByVehicle().get(this.vehicleId()) ?? []);
@@ -164,40 +180,53 @@ export class SpottingHistoryComponent {
   });
 
   constructor() {
-    // Everything below must run untracked: this effect's only real dependency is
-    // vehicleId() — reading _eventsByVehicle/_events here (even transitively, via
+    // Everything below must run untracked: this effect's only real dependencies are
+    // vehicleId() and the viewer — reading _eventsByVehicle/_events here (even transitively, via
     // loadMore()) would make the effect re-run every time loadMore() itself writes new
     // results, wiping them out and re-fetching forever.
     effect(() => {
-      const vehicleId = this.vehicleId();
-      untracked(() => {
-        this._hasMore.set(true);
-        this._eventsByVehicle.update((map) => {
-          const next = new Map(map);
-          next.delete(vehicleId);
-          return next;
-        });
-        this.loadMore();
-      });
+      // Both are read only to depend on them: another vehicle is another list, and a viewer who
+      // signs in or out changes every row's isMine.
+      this.vehicleId();
+      this.auth.isLoggedIn();
+      untracked(() => void this.loadMore(true));
     });
   }
 
-  async loadMore(): Promise<void> {
+  /**
+   * Asks for the next page and appends it. With `restart` it asks for the first page instead, and
+   * that replaces the list when it arrives, so what is on screen stays until then.
+   */
+  async loadMore(restart = false): Promise<void> {
+    const request = ++this.latestRequest;
     const vehicleId = this.vehicleId();
+    const offset = restart ? 0 : untracked(() => this._events().length);
     this._isLoading.set(true);
     try {
+      // Only a signed-in viewer has a token to wait for; an anonymous request goes out at once.
+      const idToken = this.auth.isLoggedIn() ? await this.auth.idToken() : null;
       const data = await this.graphql.request<VehicleEventsQueryData, VehicleEventsQueryVars>(
         VEHICLE_EVENTS_QUERY,
-        { vehicleId, limit: PAGE_SIZE, offset: untracked(() => this._events().length) },
+        { vehicleId, limit: PAGE_SIZE, offset },
+        idToken ? { "firebase-auth-key": idToken } : {},
       );
+      if (request !== this.latestRequest) {
+        return;
+      }
       this._hasMore.set(data.events.length === PAGE_SIZE);
       this._eventsByVehicle.update((map) => {
         const next = new Map(map);
-        next.set(vehicleId, [...(next.get(vehicleId) ?? []), ...data.events]);
+        next.set(
+          vehicleId,
+          restart ? data.events : [...(next.get(vehicleId) ?? []), ...data.events],
+        );
         return next;
       });
     } finally {
-      this._isLoading.set(false);
+      // Only the newest request clears the flag; an older one leaves it to its replacement.
+      if (request === this.latestRequest) {
+        this._isLoading.set(false);
+      }
     }
   }
 }
