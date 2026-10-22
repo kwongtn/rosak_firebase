@@ -55,7 +55,12 @@ describe("PushService", () => {
   };
 
   function create(
-    options: { vapidKey?: string; support?: PushSupport; signedIn?: boolean } = {},
+    options: {
+      vapidKey?: string;
+      support?: PushSupport;
+      signedIn?: boolean;
+      idToken?: () => Promise<string | null>;
+    } = {},
   ): PushService {
     TestBed.configureTestingModule({
       providers: [
@@ -65,7 +70,7 @@ describe("PushService", () => {
         {
           provide: AuthService,
           useValue: {
-            idToken: async () => "id-token",
+            idToken: options.idToken ?? (async () => "id-token"),
             isLoggedIn: signal(options.signedIn ?? true),
           },
         },
@@ -550,10 +555,23 @@ describe("PushService", () => {
 
       expect(push.lines()).toEqual([]);
       expect(readPushState()).toBeNull();
-      expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([
-        [{ token: "fcm-token" }, HEADERS, { quiet: true }],
-      ]);
+      await vi.waitFor(() =>
+        expect(callsOf(UNREGISTER_PUSH_TOKEN_MUTATION)).toEqual([
+          [{ token: "fcm-token" }, HEADERS, { quiet: true }],
+        ]),
+      );
       settle({ unregisterPushToken: { ok: true } });
+    });
+
+    it("does not wait for an ID token that is still refreshing on a dead link", async () => {
+      writePushState({ token: "fcm-token", lines: [KJL] });
+      // Firebase Auth's refresh of an expired token can take its 30 s network timeout.
+      const push = create({ idToken: () => new Promise<string | null>(() => undefined) });
+
+      await push.forget();
+
+      expect(readPushState()).toBeNull();
+      expect(request).not.toHaveBeenCalled();
     });
 
     it("reports a failed unregister after the fact", async () => {

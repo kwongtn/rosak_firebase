@@ -265,8 +265,9 @@ export class PushService {
 
   /**
    * Before a sign-out (`AuthService.logout`): forgets this browser's alerts at once and asks the
-   * backend to drop the token, best effort. The request is not awaited, so a dead link cannot hold
-   * the sign-out up; it carries an ID token minted while the session still exists.
+   * backend to drop the token, best effort. Nothing here is awaited. The ID token is asked for now,
+   * from the account that is still signed in, but refreshing an expired one can wait out Firebase
+   * Auth's 30 s network timeout on a dead link, and the sign-out must not wait for it or the request.
    */
   async forget(): Promise<void> {
     const state = this._state();
@@ -274,13 +275,14 @@ export class PushService {
     if (!state) {
       return;
     }
-    const headers = await this.authHeaders();
-    void this.graphql
-      .request<UnregisterPushTokenData, UnregisterPushTokenVars>(
-        UNREGISTER_PUSH_TOKEN_MUTATION,
-        { token: state.token },
-        headers,
-        { quiet: true },
+    void this.authHeaders()
+      .then((headers) =>
+        this.graphql.request<UnregisterPushTokenData, UnregisterPushTokenVars>(
+          UNREGISTER_PUSH_TOKEN_MUTATION,
+          { token: state.token },
+          headers,
+          { quiet: true },
+        ),
       )
       .catch((err: unknown) => {
         if (!(err instanceof GraphQLRequestError)) {
