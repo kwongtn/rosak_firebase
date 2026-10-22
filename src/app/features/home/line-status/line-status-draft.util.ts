@@ -1,3 +1,4 @@
+import { SESSION_DRAFT_PREFIX } from "../../../core/util/web-storage.util";
 import { PASSENGER_STATUSES } from "../data/board-lines.util";
 import type { PassengerStatus } from "../data/home.queries";
 
@@ -5,9 +6,10 @@ import type { PassengerStatus } from "../data/home.queries";
  * `sessionStorage` key of one line's line-status draft. One draft per line: the sheet always opens
  * for a line, so the line is the key, and a draft for one line never shows up on another's sheet.
  * The `:v1` segment is the shape version (a shape change bumps it and orphans the old payload).
+ * Under `SESSION_DRAFT_PREFIX`, so it is removed when the signed-in account changes.
  */
 export function lineStatusDraftKey(lineId: string): string {
-  return `rosak:line-status-draft:v1:${lineId}`;
+  return `${SESSION_DRAFT_PREFIX}line-status:v1:${lineId}`;
 }
 
 /** Everything the sheet holds that a rider types or picks. */

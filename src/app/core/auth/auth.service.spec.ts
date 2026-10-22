@@ -4,6 +4,7 @@ import type { IdTokenResult, User } from "firebase/auth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastService } from "../../ui/toast/toast.service";
+import { SESSION_DRAFT_PREFIX } from "../util/web-storage.util";
 import { AuthService } from "./auth.service";
 
 /**
@@ -75,6 +76,18 @@ describe("AuthService", () => {
 
     expect(adminWhenReleased).toBe(true);
     expect(handleError).not.toHaveBeenCalled();
+  });
+
+  it("removes the report drafts this tab saved for an account once it signs out", async () => {
+    const { internals } = create();
+    const claims = async () => ({ claims: {} }) as unknown as IdTokenResult;
+    const draftKey = `${SESSION_DRAFT_PREFIX}line-status:v1:line-1`;
+
+    await internals.applyUser(fakeUser("u1", claims));
+    sessionStorage.setItem(draftKey, "notes typed while signed in");
+    await internals.applyUser(null);
+
+    expect(sessionStorage.getItem(draftKey)).toBeNull();
   });
 
   it("still releases whenReady when the cached first name cannot be read", async () => {

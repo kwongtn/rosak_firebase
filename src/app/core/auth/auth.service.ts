@@ -13,7 +13,7 @@ import {
 } from "firebase/auth";
 
 import { injectIsBrowser } from "../composables/is-browser";
-import { readStorageItem } from "../util/web-storage.util";
+import { claimSessionDrafts, readStorageItem } from "../util/web-storage.util";
 import { environment } from "../../../environments/environment";
 import { ToastService } from "../../ui/toast/toast.service";
 
@@ -92,6 +92,8 @@ export class AuthService {
   private async applyUser(user: User | null): Promise<void> {
     this.userSignal.set(user);
     this.isLoggedIn.set(user !== null);
+    // A report draft this tab saved for another account (or for one that just signed out) goes now.
+    claimSessionDrafts(user?.uid ?? null);
     // Best-effort read: a storage access that throws must not stop `whenReady` either.
     this.firstName.set(user ? readStorageItem("local", firstNameStorageKey(user.uid)) : null);
     try {

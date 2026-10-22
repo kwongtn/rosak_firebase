@@ -26,7 +26,7 @@ import {
 } from "../../../core/offline/report-outbox.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import {
-  readStorageItem,
+  readSessionDraft,
   removeStorageItem,
   writeStorageItem,
 } from "../../../core/util/web-storage.util";
@@ -412,6 +412,8 @@ export class LineStatusSheetComponent {
   private _draftLineId: string | null = null;
   /** The draft as the open edge left it (restored draft and preset applied), `null` while closed. */
   private _draftBaseline: LineStatusDraft | null = null;
+  /** Whether this open saved the draft, so a return to blank may remove it again. */
+  private _wroteDraft = false;
 
   constructor() {
     if (this.isBrowser) {
@@ -442,6 +444,7 @@ export class LineStatusSheetComponent {
         // persist effect does not save.
         this._draftLineId = lineId;
         this._draftBaseline = untracked(() => this._draft());
+        this._wroteDraft = false;
       }
       if (!isOpen && this._wasOpen) {
         // Drop the draft on the open→closed edge so the next line's report starts clean. No other
@@ -458,7 +461,8 @@ export class LineStatusSheetComponent {
     // Saves the draft while the sheet is open, behind the browser check. Gated on the two fields
     // only the open edge sets, so nothing is written over a saved draft before it has been read,
     // whichever order the two effects run in. A blank draft, or an untouched one that was not
-    // restored, is removed rather than saved: the key is this line's alone.
+    // restored, is not saved, and is removed only when this open restored or wrote it: a saved
+    // draft this open did not show (another account's, see `readSessionDraft`) is not its to remove.
     effect(() => {
       const draft = this._draft();
       const restored = this.draftRestored();
@@ -469,10 +473,14 @@ export class LineStatusSheetComponent {
       }
       const key = lineStatusDraftKey(lineId);
       if (isBlankLineStatusDraft(draft) || (!restored && sameLineStatusDraft(draft, baseline))) {
-        removeStorageItem("session", key);
+        if (restored || this._wroteDraft) {
+          removeStorageItem("session", key);
+          this._wroteDraft = false;
+        }
         return;
       }
       writeStorageItem("session", key, serializeLineStatusDraft(draft));
+      this._wroteDraft = true;
     });
   }
 
@@ -481,7 +489,10 @@ export class LineStatusSheetComponent {
     if (!this.isBrowser || !lineId) {
       return;
     }
-    const draft = parseLineStatusDraft(readStorageItem("session", lineStatusDraftKey(lineId)));
+    // Another account's draft is not this reader's to see (`readSessionDraft`).
+    const draft = parseLineStatusDraft(
+      readSessionDraft(lineStatusDraftKey(lineId), this.auth.user()?.uid ?? null),
+    );
     if (!draft) {
       return;
     }

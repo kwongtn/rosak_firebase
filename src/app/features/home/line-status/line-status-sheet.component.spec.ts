@@ -13,6 +13,7 @@ import {
   parseReportOutbox,
 } from "../../../core/offline/report-outbox.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
+import { claimSessionDrafts } from "../../../core/util/web-storage.util";
 import { HlmSheet, HlmSheetBody } from "../../../ui/sheet/sheet";
 import { ToastService } from "../../../ui/toast/toast.service";
 import { AssetMultiSelectComponent } from "../../insiden/asset-multi-select/asset-multi-select.component";
@@ -420,7 +421,7 @@ describe("LineStatusSheetComponent", () => {
     expect(emitted).not.toHaveBeenCalled();
     expect(preferences.pushRecentLine).toHaveBeenCalledWith("line-1");
     // The outbox holds the report now; the saved draft is gone with it.
-    expect(sessionStorage.getItem("rosak:line-status-draft:v1:line-1")).toBeNull();
+    expect(sessionStorage.getItem(lineStatusDraftKey("line-1"))).toBeNull();
   });
 
   it("queues the report when the request times out on a link that still looks online", async () => {
@@ -456,9 +457,7 @@ describe("LineStatusSheetComponent", () => {
     expect(queuedReports()).toEqual([]);
     expect(toastMocks.info).not.toHaveBeenCalled();
     expect(sheetMock.setOpen).not.toHaveBeenCalled();
-    expect(sessionStorage.getItem("rosak:line-status-draft:v1:line-1")).toContain(
-      "Doors stuck open",
-    );
+    expect(sessionStorage.getItem(lineStatusDraftKey("line-1"))).toContain("Doors stuck open");
   });
 
   it("queues without a request when the browser is offline at submit", async () => {
@@ -659,6 +658,44 @@ describe("LineStatusSheetComponent", () => {
       expect(restoredLine()?.textContent?.replace(/\s+/g, " ").trim()).toBe(
         "Draft restored. Discard",
       );
+    });
+
+    it("does not give a draft back once the account that saved it has signed out", async () => {
+      // AuthService hands the tab's drafts to whoever is signed in, on every auth state change.
+      claimSessionDrafts("u1");
+      await openSheetWithStations();
+      asTestable(fixture).notes.set("Notes typed by the first account");
+      flushEffects();
+      closeSheet();
+      expect(savedDraft()).not.toBeNull();
+
+      claimSessionDrafts(null);
+      await reopenSheet();
+
+      expect(asTestable(fixture).notes()).toBe("");
+      expect(restoredLine()).toBeNull();
+      expect(savedDraft()).toBeNull();
+    });
+
+    it("keeps another account's draft hidden, and saved, until this page knows who is signed in", async () => {
+      // The draft's owner signed out in another tab while this one was unloaded.
+      sessionStorage.setItem("rosak:draft-owner", "someone-else");
+      sessionStorage.setItem(
+        KEY,
+        serializeLineStatusDraft({
+          status: "DELAYED",
+          delayMinutes: "",
+          notes: "Someone else's notes",
+          stationIds: [],
+        }),
+      );
+
+      await openSheetWithStations();
+
+      expect(asTestable(fixture).notes()).toBe("");
+      expect(restoredLine()).toBeNull();
+      // Not this open's to remove: the owner may still be the one about to be signed back in.
+      expect(savedDraft()).toMatchObject({ notes: "Someone else's notes" });
     });
 
     it("restores only this line's draft", async () => {

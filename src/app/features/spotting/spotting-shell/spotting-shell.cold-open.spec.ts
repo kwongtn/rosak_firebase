@@ -36,7 +36,12 @@ describe("SpottingShellPage cold open", () => {
         { provide: ImageUploadService, useValue: { addToQueue: vi.fn() } },
         {
           provide: AuthService,
-          useValue: { isLoggedIn: signal(false), login: vi.fn(), idToken: async () => "token" },
+          useValue: {
+            isLoggedIn: signal(false),
+            user: signal(null),
+            login: vi.fn(),
+            idToken: async () => "token",
+          },
         },
         { provide: GraphQLClient, useValue: { request: vi.fn() } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },

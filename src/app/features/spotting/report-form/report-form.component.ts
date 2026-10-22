@@ -21,7 +21,7 @@ import { SpottingType, VehicleStatus, WheelStatus } from "../../../core/graphql/
 import { AuthService } from "../../../core/auth/auth.service";
 import { injectIsBrowser } from "../../../core/composables/is-browser";
 import {
-  readStorageItem,
+  readSessionDraft,
   removeStorageItem,
   writeStorageItem,
 } from "../../../core/util/web-storage.util";
@@ -313,7 +313,10 @@ export class ReportFormComponent {
     if (!this.isBrowser) {
       return;
     }
-    const draft = parseReportFormDraft(readStorageItem("session", REPORT_FORM_DRAFT_KEY));
+    // Another account's draft is not this reader's to see (`readSessionDraft`).
+    const draft = parseReportFormDraft(
+      readSessionDraft(REPORT_FORM_DRAFT_KEY, this.auth.user()?.uid ?? null),
+    );
     if (!draft || (seedLineId && draft.model.lineId !== "" && draft.model.lineId !== seedLineId)) {
       return;
     }

@@ -23,7 +23,7 @@ describe("line status draft (de)serialisers", () => {
   });
 
   it("keys a draft by its line", () => {
-    expect(lineStatusDraftKey("line-1")).toBe("rosak:line-status-draft:v1:line-1");
+    expect(lineStatusDraftKey("line-1")).toBe("rosak:draft:line-status:v1:line-1");
     expect(lineStatusDraftKey("line-1")).not.toBe(lineStatusDraftKey("line-2"));
   });
 

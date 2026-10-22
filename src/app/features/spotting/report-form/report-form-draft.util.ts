@@ -1,13 +1,15 @@
 import type { SpottingType, SpottingVehicleStatus, WheelStatus } from "../../../core/graphql/types";
+import { SESSION_DRAFT_PREFIX } from "../../../core/util/web-storage.util";
 import { emptyReportFormModel, type ReportFormModel } from "./report-form.schema";
 
 /**
  * `sessionStorage` key of the spotting report draft. ONE slot: the form picks its own line and
  * vehicle, so the draft carries them in its payload, and a line-seeded open restores it only for
  * that line (see `ReportFormComponent`). The `:v1` suffix is the shape version, as for
- * `rosak:preferences:v1`: a shape change bumps it and orphans the old payload.
+ * `rosak:preferences:v1`: a shape change bumps it and orphans the old payload. Under
+ * `SESSION_DRAFT_PREFIX`, so it is removed when the signed-in account changes.
  */
-export const REPORT_FORM_DRAFT_KEY = "rosak:spotting-report-draft:v1";
+export const REPORT_FORM_DRAFT_KEY = `${SESSION_DRAFT_PREFIX}spotting-report:v1`;
 
 /**
  * A saved draft: the model without its derived `selectedVehicleStatus` (the form re-derives it from

@@ -97,7 +97,12 @@ describe("ReportFormComponent", () => {
         { provide: SpottingLinesStore, useValue: { lines: storeLines } },
         {
           provide: AuthService,
-          useValue: { isLoggedIn: signal(false), login: vi.fn(), idToken: async () => "token" },
+          useValue: {
+            isLoggedIn: signal(false),
+            user: signal(null),
+            login: vi.fn(),
+            idToken: async () => "token",
+          },
         },
         { provide: GraphQLClient, useValue: { request: vi.fn() } },
         { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), info: vi.fn() } },
@@ -279,6 +284,20 @@ describe("ReportFormComponent", () => {
       expect(model().notes).toBe("");
       expect(restoredLine()).toBeNull();
       expect(document.activeElement).toBe(root.querySelector("hlm-combobox input"));
+    });
+
+    it("keeps another account's draft hidden, and saved, until this page knows who is signed in", async () => {
+      // The draft's owner signed out in another tab while this one was unloaded (see
+      // `claimSessionDrafts`, which AuthService runs on every auth state change).
+      sessionStorage.setItem("rosak:draft-owner", "someone-else");
+      saveDraft({ lineId: "4", notes: "Someone else's notes" });
+
+      sheet.open();
+      await settle();
+
+      expect(model().notes).toBe("");
+      expect(restoredLine()).toBeNull();
+      expect(savedDraft()).toMatchObject({ notes: "Someone else's notes" });
     });
 
     it("asks for the photos again when the restored draft had some", async () => {

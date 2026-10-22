@@ -39,3 +39,57 @@ export function removeStorageItem(area: WebStorageArea, key: string): void {
     // Same as a failed write: the value may outlive this call, and nothing else depends on it.
   }
 }
+
+/**
+ * Prefix of every report draft kept in `sessionStorage` (home's line-status sheet, spotting's report
+ * form). A draft is one person's typing, so {@link claimSessionDrafts} removes every key under it
+ * when the signed-in account changes.
+ */
+export const SESSION_DRAFT_PREFIX = "rosak:draft:";
+
+/** `sessionStorage`: the uid that was signed in while this tab's drafts were saved. */
+const DRAFT_OWNER_KEY = "rosak:draft-owner";
+
+/**
+ * Hands this tab's drafts to the account now signed in (`null`: nobody). `AuthService` calls it on
+ * every auth state change. When the recorded owner is someone else, or nobody is signed in any
+ * more, every draft is removed first: on a shared device the next person must not get the last
+ * person's notes back. A draft saved while signed out has no owner and survives a sign-in, so the
+ * login popup never costs the reader their typing.
+ */
+export function claimSessionDrafts(uid: string | null): void {
+  const owner = readStorageItem("session", DRAFT_OWNER_KEY);
+  if (owner !== null && owner !== uid) {
+    removeSessionDrafts();
+  }
+  if (uid === null) {
+    removeStorageItem("session", DRAFT_OWNER_KEY);
+  } else {
+    writeStorageItem("session", DRAFT_OWNER_KEY, uid);
+  }
+}
+
+/**
+ * A saved draft, or `null` when there is none or it was saved for an account other than `uid` (the
+ * signed-in uid, `null` when signed out). This covers the moment before Firebase has restored the
+ * session on a new page, when {@link claimSessionDrafts} has not run for it yet.
+ */
+export function readSessionDraft(key: string, uid: string | null): string | null {
+  const owner = readStorageItem("session", DRAFT_OWNER_KEY);
+  return owner === null || owner === uid ? readStorageItem("session", key) : null;
+}
+
+function removeSessionDrafts(): void {
+  try {
+    const storage = globalThis.sessionStorage;
+    // Backwards, because a removal shifts the keys after it.
+    for (let index = storage.length - 1; index >= 0; index--) {
+      const key = storage.key(index);
+      if (key?.startsWith(SESSION_DRAFT_PREFIX)) {
+        storage.removeItem(key);
+      }
+    }
+  } catch {
+    // Storage that cannot be read cannot hand a draft to anyone either.
+  }
+}
