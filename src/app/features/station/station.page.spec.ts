@@ -432,6 +432,24 @@ describe("StationPage: rider reports", () => {
     expect(allByTestId("station-report")).toHaveLength(0);
   });
 
+  it("keeps the station on screen when the reports read fails, with a banner in that section only", async () => {
+    create();
+    stationRequest().flush({ data: stationData() });
+    await landed();
+    reportsRequest().flush({ errors: [{ message: "boom" }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const banners = [...root().querySelectorAll("app-retry-banner")];
+    expect(banners).toHaveLength(1);
+    expect(byTestId("station-reports")?.contains(banners[0] ?? null)).toBe(true);
+    expect(textOf(banners[0])).toContain("Couldn't load rider reports.");
+    expect(allByTestId("station-report")).toHaveLength(0);
+    expect(byTestId("station-reports-empty")).toBeNull();
+    expect(textOf(byTestId("station-name"))).toBe("KL Sentral");
+    expect(allByTestId("station-line")).toHaveLength(3);
+  });
+
   it("does not read reports on the server, which renders the section waiting", async () => {
     create("1", "server");
     await answer(stationData(), null);
