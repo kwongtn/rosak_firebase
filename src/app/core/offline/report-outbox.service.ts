@@ -1,4 +1,5 @@
-import { Injectable, inject, signal } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
+import { ErrorHandler, Injectable, inject, signal } from "@angular/core";
 
 import { ToastService } from "../../ui/toast/toast.service";
 import { AuthService } from "../auth/auth.service";
@@ -53,9 +54,27 @@ export type LineStatusReportPayload = Omit<QueuedLineStatusReport, "queuedAt" | 
 /**
  * Sends one queued report through the same code path as the sheet's Submit. Resolves the payload's
  * `ok`. Rejects with `GraphQLRequestError` when the server answered with errors, and with anything
- * else when the request did not complete (a transport failure).
+ * else when it did not; {@link isRetryableSendFailure} tells which of those are worth a retry.
  */
 export type ReportOutboxSender = (report: QueuedLineStatusReport) => Promise<boolean>;
+
+/** Gateway answers for a backend that is down or restarting behind nginx: try again later. */
+const RETRYABLE_HTTP_STATUSES: readonly number[] = [502, 503, 504];
+
+/**
+ * True when a send failed because the report did not get through, so it is worth keeping for a
+ * later try: no connection or a dead link (`HttpErrorResponse` status 0, which is also what a
+ * request timeout gives), a gateway in front of a backend that is down (502, 503, 504), or an ID
+ * token refresh that could not reach Firebase. Anything else is an answer that sending the same
+ * report again will not change: a `GraphQLRequestError`, any other 4xx or 5xx, a client error.
+ * The sheet and the flush both decide with it, so a report is queued exactly when it is kept.
+ */
+export function isRetryableSendFailure(err: unknown): boolean {
+  if (err instanceof HttpErrorResponse) {
+    return err.status === 0 || RETRYABLE_HTTP_STATUSES.includes(err.status);
+  }
+  return err instanceof Error && "code" in err && err.code === "auth/network-request-failed";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -141,6 +160,7 @@ export class ReportOutboxService {
   private readonly auth = inject(AuthService);
   private readonly online = inject(OnlineService);
   private readonly toast = inject(ToastService);
+  private readonly errorHandler = inject(ErrorHandler);
   private readonly isBrowser = injectIsBrowser();
 
   /** A mirror of storage for the UI. Storage stays the source of truth: every change re-reads it. */
@@ -175,9 +195,10 @@ export class ReportOutboxService {
   /**
    * Sends what is waiting, oldest first, and resolves how many went through. A no-op while offline
    * and while a flush is already running. Entries older than {@link REPORT_OUTBOX_MAX_AGE_MINUTES}
-   * are dropped with a toast first. Then, for the signed-in account only: a server error
-   * (`GraphQLRequestError`, or a payload that is not `ok`) drops the entry and toasts why; a
-   * transport failure keeps it and everything after it for the next try.
+   * are dropped with a toast first. Then, for the signed-in account only: a failure that
+   * {@link isRetryableSendFailure} accepts keeps the entry and everything after it for the next
+   * try; any other answer (a `GraphQLRequestError`, a payload that is not `ok`, another HTTP error)
+   * drops the entry and toasts why.
    */
   async flush(send: ReportOutboxSender): Promise<number> {
     // The empty check keeps a flush on every board beat down to one storage read.
@@ -246,16 +267,24 @@ export class ReportOutboxService {
           );
         }
       } catch (err) {
-        if (err instanceof GraphQLRequestError) {
-          this.remove(report);
-          this.toast.error("Saved report not sent", err.message);
-          continue;
+        if (isRetryableSendFailure(err)) {
+          // The connection is not really back. Keep this report and the rest for the next try,
+          // which is the whole point of the outbox. Not rethrown: a dead link is the case the outbox
+          // exists for, and a submit that queued after a failure already sent that failure to Sentry.
+          break;
         }
-        // A transport failure: the connection is not really back. Keep this report and the rest for
-        // the next try, which is the whole point of the outbox. Not rethrown: a dead link is the
-        // case the outbox exists for, and a submit that queued after a failure already sent that
-        // failure to Sentry.
-        break;
+        // An answer that sending again will not change: drop the report and say why.
+        this.remove(report);
+        if (err instanceof GraphQLRequestError) {
+          // `GraphQLClient` has already reported it to Sentry.
+          this.toast.error("Saved report not sent", err.message);
+        } else {
+          this.toast.error(
+            "Saved report not sent",
+            "The server didn't save it. Report again if it still applies.",
+          );
+          this.errorHandler.handleError(err);
+        }
       }
     }
     if (sent > 0) {

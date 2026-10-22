@@ -1,4 +1,10 @@
-import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
+import {
+  ErrorHandler,
+  WritableSignal,
+  provideZonelessChangeDetection,
+  signal,
+} from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +16,7 @@ import { metricTooltip } from "../methodology/methodology-render.util";
 import {
   REPORT_OUTBOX_MAX_AGE_MINUTES,
   ReportOutboxService,
+  isRetryableSendFailure,
   parseReportOutbox,
   type LineStatusReportPayload,
   type QueuedLineStatusReport,
@@ -52,6 +59,15 @@ function stored(): QueuedLineStatusReport[] {
   return parseReportOutbox(localStorage.getItem(STORAGE_KEY));
 }
 
+/** What `HttpClient` rejects with when the request does not complete, or when it times out. */
+function droppedConnection(): HttpErrorResponse {
+  return new HttpErrorResponse({ status: 0, statusText: "Unknown Error" });
+}
+
+function timedOut(): HttpErrorResponse {
+  return new HttpErrorResponse({ error: new DOMException("signal timed out", "TimeoutError") });
+}
+
 describe("ReportOutboxService", () => {
   let isLoggedIn: WritableSignal<boolean>;
   let user: WritableSignal<{ uid: string } | null>;
@@ -60,17 +76,20 @@ describe("ReportOutboxService", () => {
     error: ReturnType<typeof vi.fn>;
     info: ReturnType<typeof vi.fn>;
   };
+  let handleError: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     localStorage.clear();
     isLoggedIn = signal(true);
     user = signal<{ uid: string } | null>({ uid: "u1" });
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+    handleError = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
         { provide: AuthService, useValue: { isLoggedIn, user, whenReady: Promise.resolve() } },
         { provide: ToastService, useValue: toast },
+        { provide: ErrorHandler, useValue: { handleError } },
       ],
     });
   });
@@ -207,7 +226,7 @@ describe("ReportOutboxService", () => {
   it("keeps a report, and every one after it, when the connection is not really back", async () => {
     store([queued("line-1", 3), queued("line-2", 2)]);
     const send = vi.fn<ReportOutboxSender>(async () => {
-      throw new Error("Http failure response: 0 Unknown Error");
+      throw droppedConnection();
     });
 
     const sent = await service().flush(send);
@@ -217,6 +236,47 @@ describe("ReportOutboxService", () => {
     expect(stored().map((entry) => entry.lineId)).toEqual(["line-1", "line-2"]);
     expect(toast.error).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
+    expect(handleError).not.toHaveBeenCalled();
+  });
+
+  it("keeps a report whose send timed out, and lets the next beat try again", async () => {
+    const request = vi.fn((_name: string, callback: () => Promise<number>) => callback());
+    Object.defineProperty(navigator, "locks", { configurable: true, value: { request } });
+    store([queued("line-1", 3)]);
+    const send = vi
+      .fn<ReportOutboxSender>()
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(true);
+    const outbox = service();
+
+    expect(await outbox.flush(send)).toBe(0);
+    expect(stored()).toHaveLength(1);
+
+    // The lock was released and the busy flag cleared, so the next beat sends it.
+    expect(await outbox.flush(send)).toBe(1);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(stored()).toEqual([]);
+  });
+
+  it("drops a report the server refused with another HTTP error, says so, reports it, and goes on", async () => {
+    store([queued("line-1", 3), queued("line-2", 2)]);
+    const refusal = new HttpErrorResponse({ status: 400, statusText: "Bad Request" });
+    const send = vi.fn<ReportOutboxSender>(async (report) => {
+      if (report.lineId === "line-1") {
+        throw refusal;
+      }
+      return true;
+    });
+
+    const sent = await service().flush(send);
+
+    expect(sent).toBe(1);
+    expect(stored()).toEqual([]);
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+      "Saved report not sent",
+      "The server didn't save it. Report again if it still applies.",
+    );
+    expect(handleError).toHaveBeenCalledExactlyOnceWith(refusal);
   });
 
   it("does nothing while offline, not even expiring", async () => {
@@ -333,6 +393,42 @@ describe("ReportOutboxService", () => {
     expect(request).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
     expect(stored()).toHaveLength(1);
+  });
+
+  /* ---- which failures are worth a retry ------------------------------------------------------ */
+
+  it.each([
+    ["a dropped connection (status 0)", droppedConnection()],
+    ["a request timeout", timedOut()],
+    ["a 502", new HttpErrorResponse({ status: 502, statusText: "Bad Gateway" })],
+    ["a 503", new HttpErrorResponse({ status: 503, statusText: "Service Unavailable" })],
+    ["a 504", new HttpErrorResponse({ status: 504, statusText: "Gateway Timeout" })],
+    [
+      "a token refresh that could not reach Firebase",
+      Object.assign(new Error("Firebase: Error (auth/network-request-failed)."), {
+        code: "auth/network-request-failed",
+      }),
+    ],
+  ])("retries %s", (_label, err) => {
+    expect(isRetryableSendFailure(err)).toBe(true);
+  });
+
+  it.each([
+    ["a GraphQL error", new GraphQLRequestError([{ message: "No such line" }])],
+    ["a 400", new HttpErrorResponse({ status: 400, statusText: "Bad Request" })],
+    ["a 403", new HttpErrorResponse({ status: 403, statusText: "Forbidden" })],
+    ["a 413", new HttpErrorResponse({ status: 413, statusText: "Payload Too Large" })],
+    ["a 500", new HttpErrorResponse({ status: 500, statusText: "Internal Server Error" })],
+    [
+      "another Firebase error",
+      Object.assign(new Error("Firebase: Error (auth/user-disabled)."), {
+        code: "auth/user-disabled",
+      }),
+    ],
+    ["a plain error", new Error("boom")],
+    ["something that is not an error", "offline"],
+  ])("does not retry %s", (_label, err) => {
+    expect(isRetryableSendFailure(err)).toBe(false);
   });
 
   /* ---- the stored shape ------------------------------------------------------------------- */

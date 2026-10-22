@@ -1,4 +1,5 @@
 import { WritableSignal, provideZonelessChangeDetection, signal } from "@angular/core";
+import { HttpErrorResponse } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -384,7 +385,8 @@ describe("LineStatusSheetComponent", () => {
   }
 
   it("queues the report when the server cannot be reached, says so, and still rethrows", async () => {
-    requestMock.mockRejectedValue(new Error("Network down"));
+    const failure = new HttpErrorResponse({ status: 0, statusText: "Unknown Error" });
+    requestMock.mockRejectedValue(failure);
     await prepareSubmit();
     asTestable(fixture).notes.set("Doors stuck open");
     asTestable(fixture).delayMinutes.set("7");
@@ -393,7 +395,7 @@ describe("LineStatusSheetComponent", () => {
     const emitted = vi.fn();
     fixture.componentInstance.submitted.subscribe(emitted);
 
-    await expect(asTestable(fixture).submit()).rejects.toThrow("Network down");
+    await expect(asTestable(fixture).submit()).rejects.toBe(failure);
     fixture.detectChanges();
 
     expect(queuedReports()).toEqual([
@@ -418,6 +420,44 @@ describe("LineStatusSheetComponent", () => {
     expect(preferences.pushRecentLine).toHaveBeenCalledWith("line-1");
     // The outbox holds the report now; the saved draft is gone with it.
     expect(sessionStorage.getItem("rosak:line-status-draft:v1:line-1")).toBeNull();
+  });
+
+  it("queues the report when the request times out on a link that still looks online", async () => {
+    const timeout = new HttpErrorResponse({
+      error: new DOMException("signal timed out", "TimeoutError"),
+    });
+    requestMock.mockRejectedValue(timeout);
+    await prepareSubmit();
+
+    await expect(asTestable(fixture).submit()).rejects.toBe(timeout);
+
+    expect(queuedReports()).toEqual([expect.objectContaining({ lineId: "line-1" })]);
+    expect(toastMocks.info).toHaveBeenCalledExactlyOnceWith(
+      "Saved",
+      "It will send when you're back online.",
+    );
+    expect(sheetMock.setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the sheet and the draft for an HTTP error that sending again will not fix", async () => {
+    const refusal = new HttpErrorResponse({ status: 400, statusText: "Bad Request" });
+    requestMock.mockRejectedValue(refusal);
+    await prepareSubmit();
+    asTestable(fixture).notes.set("Doors stuck open");
+    fixture.detectChanges();
+
+    await expect(asTestable(fixture).submit()).rejects.toBe(refusal);
+    fixture.detectChanges();
+
+    expect(submitErrorElement()?.textContent?.trim()).toBe(
+      "Couldn't submit your report. Please try again.",
+    );
+    expect(queuedReports()).toEqual([]);
+    expect(toastMocks.info).not.toHaveBeenCalled();
+    expect(sheetMock.setOpen).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("rosak:line-status-draft:v1:line-1")).toContain(
+      "Doors stuck open",
+    );
   });
 
   it("queues without a request when the browser is offline at submit", async () => {

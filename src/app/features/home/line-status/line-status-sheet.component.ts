@@ -21,6 +21,7 @@ import { metricTooltip } from "../../../core/methodology/methodology-render.util
 import { OnlineService } from "../../../core/network/online.service";
 import {
   ReportOutboxService,
+  isRetryableSendFailure,
   type LineStatusReportPayload,
 } from "../../../core/offline/report-outbox.service";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
@@ -91,7 +92,7 @@ const STATUS_OPTIONS: Array<{ value: PassengerStatus; label: string }> = (
  * a successful submit and a queued one (below) are the ways the saved draft ends.
  *
  * 🔴 **A report the server cannot take is QUEUED, not lost.** Offline at Submit, or a failure that
- * is not a `GraphQLRequestError` (the request never completed), hands the report to
+ * `isRetryableSendFailure` accepts (the report did not get through), hands the report to
  * `ReportOutboxService` (`core/offline/`), toasts "Saved. It will send when you're back online."
  * and closes the sheet as a submit does. The home route flushes the outbox on reconnect
  * (`data/report-outbox-flush.ts`); a queued report expires after the methodology's
@@ -586,10 +587,17 @@ export class LineStatusSheetComponent {
         this.submitError.set(err.message);
         return;
       }
-      // The server never answered: a dead link that `navigator.onLine` still calls online, a 5xx, a
-      // token refresh that could not reach Firebase. Queue the report instead of showing an error,
-      // and still rethrow, so Sentry sees how often it happens.
-      this.queueReport(input);
+      if (isRetryableSendFailure(err)) {
+        // The report did not get through: a dead link that `navigator.onLine` still calls online,
+        // the request timeout, a gateway error, a token refresh that could not reach Firebase.
+        // Queue it instead of showing an error.
+        this.queueReport(input);
+      } else {
+        // An answer that sending again will not change (another 4xx or 5xx): queueing it would only
+        // retry it until it expires. Keep the sheet and the draft, as for `ok: false`.
+        this.submitError.set("Couldn't submit your report. Please try again.");
+      }
+      // Rethrown either way, so Sentry sees how often it happens.
       throw err;
     } finally {
       this.isSubmitting.set(false);
