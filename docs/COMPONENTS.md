@@ -196,7 +196,11 @@ button, badge, skeleton, sheet, table, toast…, plus `app-avatar` and `app-exte
     `afterAll(() => vi.resetModules())`. Mocks are per file, the module cache is not: without the
     first, the unit under test keeps the bindings of whichever file loaded it first (a Sentry
     assertion that never fires); without the second, the next file gets modules still bound to
-    these mocks.
+    these mocks. Where the unit has a DI seam (`LOAD_FEEDBACK`, `UPLOAD_ERROR_REPORTER`), stub it
+    through TestBed instead of mocking the module.
+  - `src/test-hygiene.spec.ts` fails the suite for a spec that calls `vi.mock` without that pair or
+    deletes a member of `URL`. It reads spec source with regexes, so a leak written another way
+    slips past: chase those with the seeded single-worker run below.
   - To chase an order-dependent failure, run one worker in a fixed or seeded order with a
     throwaway `--runner-config` file: `test: { maxWorkers: 1, fileParallelism: false }` plus
     `sequence: { sequencer }` (a class whose `sort(files)` returns the order) or
