@@ -17,20 +17,21 @@ function vehicleFeed(): Buffer {
   const message = transit_realtime.FeedMessage.create({
     header: { gtfsRealtimeVersion: "2.0" },
     entity: [
-      {
-        id: "1",
-        vehicle: {
-          vehicle: { id: "ktmb-ets-9001", label: "ETS 9001" },
-          position: { latitude: 3.139, longitude: 101.687 },
-          timestamp: Math.floor(Date.now() / 1000),
-        },
+      { id: "1", label: "ETS 9001", latitude: 3.139, longitude: 101.687 },
+      { id: "2", label: "ETS 9002", latitude: 3.15, longitude: 101.7 },
+    ].map(({ id, label, latitude, longitude }) => ({
+      id,
+      vehicle: {
+        vehicle: { id: `ktmb-ets-900${id}`, label },
+        position: { latitude, longitude },
+        timestamp: Math.floor(Date.now() / 1000),
       },
-    ],
+    })),
   });
   return Buffer.from(transit_realtime.FeedMessage.encode(message).finish());
 }
 
-test("a selected realtime feed draws its vehicle on the map", async ({ page }) => {
+test("a selected realtime feed draws its vehicles on the map", async ({ page }) => {
   let feedRequests = 0;
   await page.route(KTMB_FEED, (route) => {
     feedRequests += 1;
@@ -46,7 +47,9 @@ test("a selected realtime feed draws its vehicle on the map", async ({ page }) =
 
   await page.goto("/tracker");
 
-  // The vehicle marker is a plain DOM element L7 places over the map; none before Apply.
+  // The vehicle marker is a plain DOM element L7 places over the map; none before Apply. It has no
+  // testid, so the selector is its inline blue (#2563eb in vehicle-marker-icon.ts): restyle it and
+  // this fails loudly. A data-testid on that wrapper would replace the colour.
   const markers = page.locator('#map div[style*="rgb(37, 99, 235)"]');
   await expect(markers).toHaveCount(0);
   await page
@@ -57,6 +60,12 @@ test("a selected realtime feed draws its vehicle on the map", async ({ page }) =
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect.poll(() => feedRequests).toBeGreaterThan(0);
-  await expect(markers).toHaveCount(1);
+  await expect(markers).toHaveCount(2);
   await expect(markers.first()).toBeVisible();
+
+  // The popup is built from the feed entity, so it proves the feed's data reached the marker.
+  // force: the click lands on the marker's SVG glyph, which Playwright's hit-target check rejects
+  // as "intercepting" although it is the marker's own child and the click bubbles to its handler.
+  await markers.first().click({ force: true });
+  await expect(page.locator(".l7-popup")).toContainText(/ETS 900[12]/);
 });
