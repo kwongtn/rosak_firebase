@@ -44,7 +44,7 @@
   - `ReCaptchaV3Service` (`ng-recaptcha-2`, provided in `app.config.ts`) — `markAsRead` sends `g-recaptcha-response` because the backend enforces `IsRecaptchaChallengePassed` on it. `firstValueFrom` bridges the Observable into the async handler. (Profile's `deleteSpottingEntry` also sends a token, through the separate `core/recaptcha/recaptcha.service.ts`.)
   - `ToastService`, `RouterLink` (row vehicle → `/spotting/:lineId/vehicle/:vehicleId`), `AppNavComponent`/`AppFooterComponent` (`src/app/shell/*`), `VehicleStatusBadge`/`SpottingTypeBadge` (`src/app/domain-ui/*`), Helm UI kit (`src/app/ui/*`).
   - `environment.backendUrl` — deep links into the Django admin for an event / reporter.
-  - Types mirrored from the backend: `SpottingType`, `SpottingVehicleStatus`, `VehicleStatus`, `WheelStatus` (`core/graphql/types.ts`).
+  - Types mirrored from the backend: `SpottingType`, `SpottingVehicleStatus` (all 7 schema values), `VehicleStatus`, `WheelStatus` (`core/graphql/types.ts`).
 
 ## ⚙️ Internal State & Logic
 

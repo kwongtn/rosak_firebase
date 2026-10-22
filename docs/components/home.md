@@ -51,7 +51,7 @@
     (de)serialisers); `report/` — `report-chooser.component.ts`,
     `report-chooser.service.ts`, `report-chooser-order.util.ts`;
     `refresh-control/home-refresh-control.component.ts`.
-  - `data/` — GraphQL modules `home.queries.ts` (shared schema enums), `home-board.queries.ts`,
+  - `data/` — GraphQL modules `home.queries.ts` (shared schema enums, re-exported from `core/graphql/types.ts`), `home-board.queries.ts`,
     `home-feed.queries.ts` + `home-feed-items.ts`, `home-history.queries.ts`,
     `home-incidents.queries.ts`, `home-feed-mutations.queries.ts`; `home.store.ts`;
     `home-view-mode.service.ts`; `line-status-sheet.service.ts`; `submit-line-status-report.ts` (the
