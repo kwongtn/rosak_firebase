@@ -22,11 +22,19 @@
  * spec-side stub data, not server code; this file only has to not choke on the
  * new variables, which the pass-through already guarantees.
  *
+ * Two things fail loudly instead of passing for the wrong reason:
+ *   - an operation with no configured stub answers a GraphQL error AND its name is recorded
+ *     (GET /__unstubbed), which the shared `test` in helpers/mock-graphql.ts turns into a test
+ *     failure after every test;
+ *   - a mutation sent without the `firebase-auth-key` header answers an UNAUTHENTICATED error, as
+ *     the real backend does, so a spec cannot "log in" without the token path really running.
+ *
  * Endpoints:
  *   POST /graphql/        answered from the configured operation stubs
- *   POST /__configure     body: { [operationName]: responseData }
- *   GET  /__calls         every received GraphQL call, oldest first
- *   POST /__reset         clears stubs and recorded calls
+ *   POST /__configure     body: { [operationName]: responseData | { __error: message } }
+ *   GET  /__calls         every received GraphQL call (name, variables, authKey), oldest first
+ *   GET  /__unstubbed     names of the operations received without a stub, first seen first
+ *   POST /__reset         clears stubs, recorded calls and unstubbed names
  */
 import { createServer } from "node:http";
 
@@ -34,6 +42,7 @@ const PORT = Number(process.env["MOCK_GRAPHQL_PORT"] ?? 4301);
 
 let stubs = {};
 const calls = [];
+const unstubbed = [];
 
 function json(res, status, body) {
   res.writeHead(status, {
@@ -65,6 +74,7 @@ const server = createServer((req, res) => {
   if (req.method === "POST" && req.url === "/__reset") {
     stubs = {};
     calls.length = 0;
+    unstubbed.length = 0;
     json(res, 200, { ok: true });
     return;
   }
@@ -79,6 +89,11 @@ const server = createServer((req, res) => {
     return;
   }
 
+  if (req.method === "GET" && req.url === "/__unstubbed") {
+    json(res, 200, unstubbed);
+    return;
+  }
+
   if (req.method === "POST" && req.url?.startsWith("/graphql")) {
     let raw = "";
     req.on("data", (chunk) => (raw += chunk));
@@ -88,12 +103,33 @@ const server = createServer((req, res) => {
       // field — so pull it out of the document itself.
       const match = /(?:query|mutation)\s+([A-Za-z0-9_]+)/.exec(body.query ?? "");
       const name = body.operationName ?? match?.[1] ?? "";
-      calls.push({ operationName: name, variables: body.variables ?? {} });
+      const authKey = req.headers["firebase-auth-key"] ?? null;
+      calls.push({ operationName: name, variables: body.variables ?? {}, authKey });
+      if (/^\s*mutation\b/.test(body.query ?? "") && !authKey) {
+        json(res, 200, {
+          errors: [
+            {
+              message: `${name} sent without firebase-auth-key`,
+              extensions: { code: "UNAUTHENTICATED" },
+            },
+          ],
+        });
+        return;
+      }
       if (!(name in stubs)) {
+        if (!unstubbed.includes(name)) {
+          unstubbed.push(name);
+        }
         json(res, 200, { errors: [{ message: `No stub configured for ${name}` }] });
         return;
       }
-      // The stub value IS the GraphQL `data` object (keyed by root field name).
+      // The stub value IS the GraphQL `data` object (keyed by root field name), unless it is the
+      // `{ __error: message }` marker (see graphqlError in helpers/mock-graphql.ts): then the
+      // operation fails the way a rejected request does, with a top-level `errors` array.
+      if (typeof stubs[name]?.__error === "string") {
+        json(res, 200, { errors: [{ message: stubs[name].__error }] });
+        return;
+      }
       json(res, 200, { data: stubs[name] });
     });
     return;

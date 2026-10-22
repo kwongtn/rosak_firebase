@@ -1,7 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
-import { configureMock, resetMock, routeGraphQLToMock } from "./helpers/mock-graphql";
+import { configureMock, expect, resetMock, routeGraphQLToMock, test } from "./helpers/mock-graphql";
+import { dayKey, LINE, vehicleRange, vehicleType } from "./helpers/spotting-fixtures";
 
 /**
  * E2E coverage for the /spotting/:lineId/details "Spotting Activity" vehicle × date grid.
@@ -20,69 +21,12 @@ import { configureMock, resetMock, routeGraphQLToMock } from "./helpers/mock-gra
  * so the stubbed spotting dates are computed from `new Date()` to always land inside it.
  */
 
-const LINE = { id: "1", code: "L1", displayName: "Line 1", status: "ACTIVE" };
-
-/** The visible window is the current UTC month plus the two before it, so a day in the current
- * UTC month always lands inside it — regardless of when the suite runs. */
-const NOW = new Date();
-const YEAR = NOW.getUTCFullYear();
-const MONTH = String(NOW.getUTCMonth() + 1).padStart(2, "0");
-const dayKey = (day: number): string => `${YEAR}-${MONTH}-${String(day).padStart(2, "0")}`;
-
-function vehicle(id: string, identificationNo: string): Record<string, unknown> {
-  return {
-    id,
-    identificationNo,
-    status: "IN_SERVICE",
-    nickname: null,
-    lastSpottingDate: null,
-    lastSpottedAt: null,
-    inServiceSince: null,
-    spottingCount: 0,
-    notes: null,
-    incidentCount: 0,
-    wheelStatus: null,
-  };
-}
-
-function vehicleRange(
-  startIndex: number,
-  count: number,
-  firstNumber: number,
-): Array<Record<string, unknown>> {
-  return Array.from({ length: count }, (_, i) =>
-    vehicle(`v${startIndex + i}`, String(firstNumber + i)),
-  );
-}
-
-function vehicleType(
-  id: string,
-  internalName: string,
-  displayName: string,
-  vehicles: Array<Record<string, unknown>>,
-): Record<string, unknown> {
-  return {
-    id,
-    internalName,
-    displayName,
-    vehicleStatusInServiceCount: vehicles.length,
-    vehicleStatusNotSpottedCount: 0,
-    vehicleStatusOutOfServiceCount: 0,
-    vehicleStatusDecommissionedCount: 0,
-    vehicleStatusMarriedCount: 0,
-    vehicleStatusTestingCount: 0,
-    vehicleStatusUnknownCount: 0,
-    vehicleTotalCount: vehicles.length,
-    vehicles,
-  };
-}
-
 const STUBS: Record<string, unknown> = {
   Lines: { lines: [LINE] },
   VehicleTypesByLine: {
     vehicleTypes: [
-      vehicleType("t1", "T1", "Type One", vehicleRange(1, 8, 101)),
-      vehicleType("t2", "T2", "Type Two", vehicleRange(9, 8, 201)),
+      vehicleType("t1", "T1", "Type One", vehicleRange(1, 8, 101, "v")),
+      vehicleType("t2", "T2", "Type Two", vehicleRange(9, 8, 201, "v")),
     ],
   },
   LineSpottingBounds: {

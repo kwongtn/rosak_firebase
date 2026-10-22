@@ -1,7 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { loginAs } from "./helpers/auth";
-import { configureMock, MOCK_GRAPHQL_URL, recordedCalls, resetMock } from "./helpers/mock-graphql";
+import {
+  configureMock,
+  expect,
+  MOCK_GRAPHQL_URL,
+  recordedCalls,
+  resetMock,
+  test,
+} from "./helpers/mock-graphql";
+import { dayKey, LINE, vehicle, vehicleRange, vehicleType } from "./helpers/spotting-fixtures";
 
 /**
  * Regression coverage for spotting's keep-alive route persistence.
@@ -12,66 +20,11 @@ import { configureMock, MOCK_GRAPHQL_URL, recordedCalls, resetMock } from "./hel
  * a background request is in flight.
  */
 
-const LINE = { id: "1", code: "L1", displayName: "Line 1", status: "ACTIVE" };
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 };
 const SCROLL_TOLERANCE = 5;
 const OVERVIEW_URL = /\/spotting\/1(?:\?.*)?$/;
 const DETAILS_URL = /\/spotting\/1\/details(?:\?.*)?$/;
 const VEHICLE_URL = /\/spotting\/1\/vehicle\/1(?:\?.*)?$/;
-
-/** The grid's visible window is the current UTC month plus the two before it. */
-const NOW = new Date();
-const YEAR = NOW.getUTCFullYear();
-const MONTH = String(NOW.getUTCMonth() + 1).padStart(2, "0");
-const dayKey = (day: number): string => `${YEAR}-${MONTH}-${String(day).padStart(2, "0")}`;
-
-function vehicle(id: string, identificationNo: string): Record<string, unknown> {
-  return {
-    id,
-    identificationNo,
-    status: "IN_SERVICE",
-    nickname: null,
-    lastSpottingDate: null,
-    lastSpottedAt: null,
-    inServiceSince: null,
-    spottingCount: 0,
-    notes: null,
-    incidentCount: 0,
-    wheelStatus: null,
-  };
-}
-
-function vehicleRange(
-  startIndex: number,
-  count: number,
-  firstNumber: number,
-): Array<Record<string, unknown>> {
-  return Array.from({ length: count }, (_, i) =>
-    vehicle(`${startIndex + i}`, String(firstNumber + i)),
-  );
-}
-
-function vehicleType(
-  id: string,
-  internalName: string,
-  displayName: string,
-  vehicles: Array<Record<string, unknown>>,
-): Record<string, unknown> {
-  return {
-    id,
-    internalName,
-    displayName,
-    vehicleStatusInServiceCount: vehicles.length,
-    vehicleStatusNotSpottedCount: 0,
-    vehicleStatusOutOfServiceCount: 0,
-    vehicleStatusDecommissionedCount: 0,
-    vehicleStatusMarriedCount: 0,
-    vehicleStatusTestingCount: 0,
-    vehicleStatusUnknownCount: 0,
-    vehicleTotalCount: vehicles.length,
-    vehicles,
-  };
-}
 
 const STUBS: Record<string, unknown> = {
   Lines: { lines: [LINE] },
@@ -130,7 +83,7 @@ async function routeGraphQLToMockWithDelay(
   await page.route("**/graphql/", async (route) => {
     const body = route.request().postDataJSON() as { query?: string } | undefined;
     const isVehicleTypes = /VehicleTypesByLine/.test(body?.query ?? "");
-    const response = await route.fetch({ url: `${MOCK_GRAPHQL_URL}/graphql/` });
+    const response = await route.fetch({ url: `${MOCK_GRAPHQL_URL}/graphql/`, maxRetries: 2 });
     const shouldDelay =
       isVehicleTypes &&
       delayVehicleTypesFrom !== undefined &&

@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
-
 import { loginAs } from "./helpers/auth";
 import {
   configureMock,
+  expect,
   recordedCalls,
   resetMock,
   routeGraphQLToMock,
+  test,
 } from "./helpers/mock-graphql";
 
 /**
@@ -48,6 +48,9 @@ const INCIDENT = {
   medias: [],
 };
 
+/** The incident forms' pickers (and the console's edit panel) read this; empty is enough here. */
+const REFERENCE_DATA = { lines: [], stations: [], calendarIncidentCategories: [] };
+
 test.beforeEach(async ({ page }) => {
   await resetMock();
   await routeGraphQLToMock(page);
@@ -57,6 +60,7 @@ test.describe("incident workflows", () => {
   test("USER: submit an incident from the report sheet", async ({ page }) => {
     await configureMock({
       CalendarIncidents: { calendarIncidents: [INCIDENT] },
+      InsidenReferenceData: REFERENCE_DATA,
       CreateCalendarIncident: { createCalendarIncident: { ok: true, id: 555 } },
       SubmitCalendarIncident: { submitCalendarIncident: { ok: true } },
     });
@@ -124,6 +128,7 @@ test.describe("incident workflows", () => {
       },
       ApproveIncident: { approveCalendarIncident: { ok: true } },
       ConsoleCategories: { calendarIncidentCategories: [] },
+      InsidenReferenceData: REFERENCE_DATA,
     });
 
     await loginAs(page, { admin: true });
@@ -156,6 +161,8 @@ test.describe("incident workflows", () => {
         ],
       },
       MarkLinkCompleted: { markSocialMediaLinkCompleted: { ok: true } },
+      ConsoleCategories: { calendarIncidentCategories: [] },
+      InsidenReferenceData: REFERENCE_DATA,
     });
 
     await loginAs(page, { admin: true });

@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
-
 import { loginAs } from "./helpers/auth";
 import {
   configureMock,
+  expect,
   recordedCalls,
   resetMock,
   routeGraphQLToMock,
+  test,
 } from "./helpers/mock-graphql";
 
 /**
@@ -225,6 +225,18 @@ function reportsPage(created: string): Record<string, unknown> {
   };
 }
 
+/** Reads the page makes in the background (history charts, incident notices, the sheet's stations):
+ * empty unless a test stubs them itself, so the mock never answers them with a missing-stub error. */
+const BACKGROUND_READS = {
+  HomeRecentIncidents: { calendarIncidents: [] },
+  NetworkStatusHistory: { networkStatusHistory: [] },
+  LinesStatusHistory: { linesStatusHistory: [] },
+  StationLinesByLine: { stationLines: [] },
+};
+
+const configureHome = (stubs: Record<string, unknown>): Promise<void> =>
+  configureMock({ ...BACKGROUND_READS, ...stubs });
+
 test.beforeEach(async ({ page }) => {
   await resetMock();
   await routeGraphQLToMock(page);
@@ -233,7 +245,7 @@ test.beforeEach(async ({ page }) => {
 test.describe("community front page", () => {
   test("VISITOR: renders the feed and line pulse list read-only", async ({ page }) => {
     const created = new Date().toISOString();
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(feedNode({ created })),
     });
@@ -372,7 +384,7 @@ test.describe("community front page", () => {
       lines: [{ id: lineId, code }],
       ...overrides,
     });
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(),
       // The mock answers by operation name, so both incident reads get this one list.
@@ -465,7 +477,7 @@ test.describe("community front page", () => {
       brief: "",
       lines: [{ id: "1", code: "KJL" }],
     };
-    await configureMock(stubs([running]));
+    await configureHome(stubs([running]));
 
     await page.goto("/");
     const kjl = page.locator("app-line-pulse-row").filter({ hasText: "Kelana Jaya Line" });
@@ -480,7 +492,7 @@ test.describe("community front page", () => {
     expect(readsBefore).toBeGreaterThan(0);
 
     // The incident ends: the next answer no longer lists it.
-    await configureMock(stubs([]));
+    await configureHome(stubs([]));
     await page.getByTestId("line-refresh-countdown").click();
 
     await expect(kjl.getByTestId("line-notice")).toHaveCount(0);
@@ -490,7 +502,7 @@ test.describe("community front page", () => {
   test("VISITOR: pinning a line that needs attention keeps it a card and asks for its planned works", async ({
     page,
   }) => {
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(),
       HomeRecentIncidents: { calendarIncidents: [] },
@@ -525,7 +537,7 @@ test.describe("community front page", () => {
     page,
   }) => {
     await loginAs(page);
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       SubmitFeedLink: {
@@ -577,7 +589,7 @@ test.describe("community front page", () => {
 
   test("USER: submits a line status report from a line row's sheet", async ({ page }) => {
     await loginAs(page);
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       StationLinesByLine: { stationLines: [] },
@@ -609,7 +621,7 @@ test.describe("community front page", () => {
 
   test("USER: upvotes a feed link", async ({ page }) => {
     await loginAs(page);
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       UpvoteSocialMediaLink: { upvoteSocialMediaLink: { ok: true } },
@@ -644,7 +656,7 @@ test.describe("community front page", () => {
     page,
   }) => {
     const reportsCreated = new Date().toISOString();
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
@@ -772,7 +784,7 @@ test.describe("community front page", () => {
     // pushed the cells down, and a still pointer then sat over the row above: aimed at the top edge of
     // Thursday 15:00, it read Wednesday.
     await page.setViewportSize({ width: 390, height: 844 });
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE] },
       Feed: feedPage(),
       LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
@@ -858,7 +870,7 @@ test.describe("community front page", () => {
       page,
     }) => {
       await page.setViewportSize(scenario.viewport);
-      await configureMock({
+      await configureHome({
         FrontPageLines: { lines: [KJL_LINE] },
         Feed: feedPage(),
         LineStatusHistory: { lineStatusHistory: HISTORY_BUCKETS },
@@ -933,7 +945,7 @@ test.describe("community front page", () => {
     // `min-w-56` floor) of the viewport's right edge. 1000px makes the clamp-relevance predicate
     // below hold for the rightmost trigger; the default 1280px would not.
     await page.setViewportSize({ width: 1000, height: 800 });
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(),
     });
@@ -984,7 +996,7 @@ test.describe("community front page", () => {
   test("VISITOR: the hero tooltip carries the short summary, not the full definition", async ({
     page,
   }) => {
-    await configureMock({
+    await configureHome({
       FrontPageLines: { lines: [KJL_LINE, MRL_LINE] },
       Feed: feedPage(),
     });
