@@ -137,13 +137,16 @@ describe("PagedFeed", () => {
 
   it("reset drops the appended pages and the cursor, so the next page starts from page one", async () => {
     const { feed, request } = setup(page(["a"], true, "c-a", 2));
-    request.mockResolvedValueOnce(page(["b"], false, "c-b", 2));
+    request.mockResolvedValueOnce(page(["b"], false, "c-b", 9));
     await feed.loadMore();
+
+    expect(feed.totalCount()).toBe(9);
 
     feed.reset();
 
     expect(feed.links().map((l) => l.id)).toEqual(["a"]);
     expect(feed.pageInfo()).toEqual({ hasNextPage: true, endCursor: "c-a" });
+    expect(feed.totalCount()).toBe(2);
 
     request.mockResolvedValueOnce(page(["b"], false, "c-b", 2));
     await feed.loadMore();

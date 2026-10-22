@@ -2,9 +2,11 @@ import { signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { metricDoc } from "../../../core/methodology/methodology-render.util";
 import { PreferencesService } from "../../../core/preferences/preferences.service";
 import { LinePulse } from "./home-board.queries";
 import { injectLinePulseView } from "./line-pulse-view";
+import { vehicleBreakdownRows, vehicleCountInfo } from "./status-info.util";
 
 function makeLine(overrides: Partial<LinePulse> = {}): LinePulse {
   return {
@@ -99,6 +101,8 @@ describe("injectLinePulseView", () => {
 
     expect(view.vehicleCountLabel()).toBe("12 of 16 vehicles in service");
     expect(view.confidence().level).toBe("none");
+    const noneTitle = view.confidenceInfo().title;
+    expect(noneTitle).toBe(metricDoc(view.confidence().metricId).title);
 
     lineSignal.set(
       makeLine({
@@ -115,6 +119,24 @@ describe("injectLinePulseView", () => {
     );
 
     expect(view.confidence().level).toBe("official");
-    expect(view.confidenceInfo().title).not.toBe("");
+    // The popover follows the resolved level's own metric, not a fixed one.
+    expect(view.confidenceInfo().title).toBe(metricDoc(view.confidence().metricId).title);
+    expect(view.confidenceInfo().title).not.toBe(noneTitle);
+  });
+
+  it("builds the fleet popover and breakdown rows from the registry and the line's counts", () => {
+    const counts: LinePulse["vehicleStatusCounts"] = [
+      { status: "IN_SERVICE", count: 12 },
+      { status: "OUT_OF_SERVICE", count: 4 },
+    ];
+    const { view, lineSignal } = setup(makeLine({ vehicleStatusCounts: counts }));
+
+    expect(view.vehicleCountInfo()).toEqual(vehicleCountInfo());
+    expect(view.vehicleBreakdown()).toEqual(vehicleBreakdownRows(counts));
+    expect(view.vehicleBreakdown().at(-1)).toEqual({ key: "TOTAL", label: "Total", value: "16" });
+
+    lineSignal.set(makeLine({ vehicleStatusCounts: [] }));
+
+    expect(view.vehicleBreakdown()).toEqual([]);
   });
 });
