@@ -305,9 +305,10 @@
 
 <!-- Mounted only once the sheet has been opened: the form's reference read (every line, vehicle and
      station) would otherwise run during SSR and ship in TransferState for a sheet most readers never
-     open. The form owns its HlmSheet, so the whole sheet is created on first open. -->
+     open. The form owns its HlmSheet, so the whole sheet is created on first open. The month is
+     read again only after a save: a cancelled sheet changed nothing. -->
 @defer (when incidentSheet.isOpen(); prefetch on idle) {
-  <app-incident-form />
+  <app-incident-form (saved)="incidentsResource.reload()" />
 }
 
 <app-link-sheet />

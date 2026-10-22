@@ -679,6 +679,36 @@ describe("IncidentCardComponent incident links", () => {
     );
   });
 
+  it("starts its continuation pages over when a list refresh hands it a new payload", async () => {
+    const withMore = () =>
+      makeIncident({
+        links: { ...linksPayload, pageInfo: { hasNextPage: true, endCursor: "cursor-live-1" } },
+      });
+    fixture.componentRef.setInput("incident", withMore());
+    await fixture.whenStable();
+    requestMock.mockResolvedValueOnce({
+      publicSocialMediaLinks: {
+        edges: [makeLinkEdge("page-2-1")],
+        pageInfo: { hasNextPage: false, endCursor: "cursor-page-2-1" },
+      },
+    });
+    await asTestableCard(fixture).loadMoreLinks();
+    fixture.detectChanges();
+    expect(linkLines()).toHaveLength(3);
+
+    // Same incident, refreshed payload: page 2 was read after the OLD first page, so it goes.
+    fixture.componentRef.setInput("incident", withMore());
+    fixture.detectChanges();
+    expect(linkLines()).toHaveLength(2);
+
+    // And the next page continues from the new payload's cursor, not page 2's.
+    requestMock.mockResolvedValueOnce({
+      publicSocialMediaLinks: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } },
+    });
+    await asTestableCard(fixture).loadMoreLinks();
+    expect(requestMock.mock.calls.at(-1)?.[1]).toMatchObject({ after: "cursor-live-1" });
+  });
+
   it("swaps the sentinel for an inline retry when a continuation page fails", async () => {
     fixture.componentRef.setInput(
       "incident",
@@ -842,6 +872,22 @@ describe("IncidentCardComponent photo preview & inline add", () => {
 
     (viewer?.querySelector('button[aria-label="Close"]') as HTMLButtonElement | null)?.click();
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector("app-media-viewer")).toBeNull();
+  });
+
+  it("closes the viewer when a list refresh replaces the payload", () => {
+    const withPhoto = () =>
+      makeIncident({ medias: [makePhoto("m1", "https://cdn.example.com/m1.jpg")] });
+    fixture.componentRef.setInput("incident", withPhoto());
+    fixture.detectChanges();
+    expandPhotos();
+    thumbnails()[0].click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector("app-media-viewer")).not.toBeNull();
+
+    fixture.componentRef.setInput("incident", withPhoto());
+    fixture.detectChanges();
+
     expect(fixture.nativeElement.querySelector("app-media-viewer")).toBeNull();
   });
 

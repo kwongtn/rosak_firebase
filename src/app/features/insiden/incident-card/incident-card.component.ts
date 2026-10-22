@@ -8,9 +8,13 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
+  untracked,
   viewChild,
+  type Signal,
+  type WritableSignal,
 } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { MarkdownComponent } from "ngx-markdown";
@@ -69,6 +73,11 @@ import { CalendarIncidentMedia } from "../data/insiden.queries";
 import { incidentMediaToViewerNode } from "../data/incident-media-viewer.util";
 
 const LINK_PAGE_SIZE = 10;
+
+/** A writable signal that starts over at `initial` whenever `source` changes. */
+function resetWith<T>(source: Signal<unknown>, initial: T): WritableSignal<T> {
+  return linkedSignal({ source, computation: () => initial });
+}
 
 const SEVERITY_VARIANT: Record<CalendarIncidentSeverity, BadgeVariants["variant"]> = {
   MAJOR: "destructive",
@@ -148,9 +157,15 @@ export class IncidentCardComponent implements OnDestroy {
    * hidden while any card is expanded, so this page never shows more than two units at once. */
   readonly detailsExpandedChange = output<boolean>();
   protected readonly insidenDetailsInlineSlotId = resolveAdSlot("insidenDetailsInline");
+  private readonly incidentId = computed(() => this.incident().id);
   /** Latest history entry for the details area (Task 18) — lazily loaded on expand
-   * (spec: only the latest entry shown), null while unloaded/hidden. */
-  protected readonly historyEntry = signal<CalendarIncidentHistoryEntry | null>(null);
+   * (spec: only the latest entry shown), null while unloaded/hidden. It belongs to one incident:
+   * a same-id payload refresh keeps it, a card re-targeted to another incident (the console queue
+   * reuses its card) starts over. */
+  protected readonly historyEntry = resetWith<CalendarIncidentHistoryEntry | null>(
+    this.incidentId,
+    null,
+  );
   /** Coalesces the lazy history fetch: an in-flight request is never re-issued. */
   private historyFetchInFlight = false;
   /** Single-line summary of the latest entry for the details area; null hides the line
@@ -165,8 +180,9 @@ export class IncidentCardComponent implements OnDestroy {
   });
   protected readonly pendingPhotos = signal<ImageFile[]>([]);
   /** Photo open in the gallery-style same-page preview (Task 19). Mapped through
-   * incidentMediaToViewerNode into MediaViewerComponent's input shape; null = closed. */
-  protected readonly viewerMedia = signal<MediaNode | null>(null);
+   * incidentMediaToViewerNode into MediaViewerComponent's input shape; null = closed. A list
+   * refresh closes it: the photo may no longer belong to the new payload. */
+  protected readonly viewerMedia = resetWith<MediaNode | null>(this.incident, null);
   private readonly photoPickerRef = viewChild(PhotoPickerComponent);
   /** See PhotoPickerComponent.isCompressing's doc comment — submitting a photo that's still
    * mid-compression captures a stale reference that ImageUploadService will retry forever
@@ -229,13 +245,16 @@ export class IncidentCardComponent implements OnDestroy {
     this.linkEdges().map((edge) => ({ id: edge.node.id, ...incidentLinkLine(edge.node) })),
   );
 
-  private readonly appendedEdges = signal<CalendarIncidentLinkEdge[]>([]);
-  private readonly appendedHasNext = signal<boolean | null>(null);
-  private readonly nextCursor = signal<string | null>(null);
-  protected readonly linksLoading = signal(false);
+  /* Continuation state belongs to the payload it continued. Every list refresh hands the card a new
+   * `incident` object whose first page may have moved, so appending the old pages after it could
+   * skip or repeat rows: all five start over with the payload. */
+  private readonly appendedEdges = resetWith<CalendarIncidentLinkEdge[]>(this.incident, []);
+  private readonly appendedHasNext = resetWith<boolean | null>(this.incident, null);
+  private readonly nextCursor = resetWith<string | null>(this.incident, null);
+  protected readonly linksLoading = resetWith(this.incident, false);
   /** Non-null while the last continuation page failed — the template swaps the
    * sentinel for an inline retry so a broken network can't spin a failing loop. */
-  protected readonly linkLoadError = signal<string | null>(null);
+  protected readonly linkLoadError = resetWith<string | null>(this.incident, null);
 
   protected readonly linkEdges = computed(() => [
     ...(this.incident().links?.edges ?? []),
@@ -308,29 +327,13 @@ export class IncidentCardComponent implements OnDestroy {
   }
 
   constructor() {
-    /** The incident input is a new object on every list refresh — reset the
-     * continuation state so appended pages never leak across incidents. */
-    let lastIncidentId: string | null = null;
+    // A card re-targeted to another incident with its details open fetches that incident's
+    // history line at once (`historyEntry` has already started over). Writes no signal itself.
     effect(() => {
-      const incident = this.incident();
-      if (incident.id !== lastIncidentId) {
-        lastIncidentId = incident.id;
-        // History belongs to a specific incident: a same-id refresh keeps the line,
-        // a re-targeted card (day navigation reuses the wrapper) clears it and
-        // refetches immediately when the details area stays open.
-        this.historyEntry.set(null);
-        if (this.detailsExpanded()) {
-          void this.loadHistory();
-        }
+      this.incidentId();
+      if (untracked(this.detailsExpanded)) {
+        untracked(() => void this.loadHistory());
       }
-      this.appendedEdges.set([]);
-      this.appendedHasNext.set(null);
-      this.nextCursor.set(null);
-      this.linkLoadError.set(null);
-      this.linksLoading.set(false);
-      // A list refresh replaces the payload — don't keep a stale viewer open for a photo
-      // that may no longer belong to this incident.
-      this.viewerMedia.set(null);
     });
 
     afterNextRender(() => {

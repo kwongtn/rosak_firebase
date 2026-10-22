@@ -171,6 +171,29 @@ describe("InsidenPage incident sheet hosting", () => {
     expect(mountedForm()).not.toBeNull();
   });
 
+  it("reads the shown month again after the form saves, and not after a cancel", async () => {
+    const isIncidentsRead = (request: { body?: { query?: string } }): boolean =>
+      request.body?.query === INSIDEN_INCIDENTS_QUERY;
+    mountPage();
+    await fixture.whenStable();
+    sheet.open();
+    await settleOpenedSheet();
+
+    sheet.close();
+    await fixture.whenStable();
+    expect(httpMock.match(isIncidentsRead)).toHaveLength(0);
+
+    sheet.open();
+    await fixture.whenStable();
+    (mountedForm().componentInstance as IncidentFormComponent).saved.emit();
+    const [reload] = await vi.waitFor(() => {
+      const found = httpMock.match(isIncidentsRead);
+      if (found.length === 0) throw new Error("no reload yet");
+      return found;
+    });
+    reload.flush({ data: { calendarIncidents: [] } });
+  });
+
   it("hydrates an incident the sheet was opened for before the form existed", async () => {
     // The incident card opens the sheet for an edit; the form is created only after that, so the
     // service has to hold the target until the form's first effect hydrates from it.

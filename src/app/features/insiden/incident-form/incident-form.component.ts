@@ -1,4 +1,13 @@
-import { Component, computed, effect, ElementRef, inject, signal, viewChild } from "@angular/core";
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from "@angular/core";
 import { form as createForm, FormField, submit } from "@angular/forms/signals";
 import { AuthService } from "../../../core/auth/auth.service";
 import { GraphQLClient, GraphQLRequestError } from "../../../core/graphql/graphql-client";
@@ -165,6 +174,9 @@ export class IncidentFormComponent {
 
   readonly isSubmitting = signal(false);
   protected readonly isSummarizing = signal(false);
+
+  /** A create or edit went through. The host reloads its list on this, and not on every close. */
+  readonly saved = output<void>();
 
   /** Affected-asset multi-selects live outside the flat form model (like chronologies):
    * they're arrays, and Signal Forms' flat fields don't model list selections. */
@@ -766,6 +778,7 @@ export class IncidentFormComponent {
               : "Your changes were saved."
             : "It will appear once approved.",
         );
+        this.saved.emit();
         this.close();
       }
     } catch (err) {

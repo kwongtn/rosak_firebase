@@ -89,7 +89,9 @@ describe("InsidenPage date-window requests", () => {
     expectWindow("2024-01-18", "2024-03-14");
   });
 
-  it("retains the active date window when refreshing after a sheet closes", async () => {
+  it("does not read the month again when the sheet closes without a save", async () => {
+    // A cancelled report changed nothing; the reload after a save is the form's `saved` output,
+    // covered in insiden.page.sheets.spec.ts.
     const fixture = TestBed.createComponent(InsidenPage);
     fixture.componentRef.setInput("date", "2026-09-17");
     fixture.detectChanges();
@@ -104,6 +106,8 @@ describe("InsidenPage date-window requests", () => {
     sheet.close();
     fixture.detectChanges();
     TestBed.tick();
-    expectWindow("2026-08-18", "2026-10-14");
+    TestBed.inject(HttpTestingController).expectNone(
+      (req) => req.body.query === INSIDEN_INCIDENTS_QUERY,
+    );
   });
 });
