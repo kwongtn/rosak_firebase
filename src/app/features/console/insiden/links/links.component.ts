@@ -6,6 +6,7 @@ import { eventValue } from "../../../../core/util/dom-event.util";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmBadge } from "../../../../ui/badge/badge";
 import { HlmButton } from "../../../../ui/button/button";
+import { HlmIconButton } from "../../../../ui/icon-button/icon-button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { ErrorBoxComponent } from "../../../../ui/error-box/error-box";
 import { HlmInput } from "../../../../ui/input/input";
@@ -316,6 +317,7 @@ import type { SocialMediaLinkStatus } from "../../../home/data/home.queries";
     ErrorBoxComponent,
     HlmBadge,
     HlmButton,
+    HlmIconButton,
     HlmInput,
     HlmSkeleton,
     HlmSheet,

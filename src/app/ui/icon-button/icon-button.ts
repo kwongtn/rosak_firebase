@@ -31,7 +31,8 @@ export class HlmIconButton implements OnInit {
     ),
   );
 
-  // Host bindings (`[attr.aria-label]`) are applied before ngOnInit, so a bound name counts.
+  // A static attribute or a template `[attr.aria-label]` on the element counts; a host binding on a
+  // wrapper component is applied after ngOnInit and would warn falsely.
   ngOnInit(): void {
     if (
       isDevMode() &&

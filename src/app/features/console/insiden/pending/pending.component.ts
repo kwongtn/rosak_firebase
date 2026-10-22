@@ -6,6 +6,7 @@ import { graphqlResource, GraphQLClient } from "../../../../core/graphql/graphql
 import { eventValue } from "../../../../core/util/dom-event.util";
 import { ToastService } from "../../../../ui/toast/toast.service";
 import { HlmButton } from "../../../../ui/button/button";
+import { HlmIconButton } from "../../../../ui/icon-button/icon-button";
 import { HlmCardImports } from "../../../../ui/card/card";
 import { HlmCheckbox } from "../../../../ui/checkbox/checkbox";
 import { ErrorBoxComponent } from "../../../../ui/error-box/error-box";
@@ -120,6 +121,7 @@ const EXTRACT_TIMEOUT_MS = 15_000;
     ErrorBoxComponent,
     FormField,
     HlmButton,
+    HlmIconButton,
     HlmCheckbox,
     HlmInput,
     HlmNativeSelect,

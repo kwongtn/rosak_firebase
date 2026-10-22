@@ -81,8 +81,8 @@
       <div hlmSheetHeader class="flex items-center justify-between gap-2">
         <h2 class="text-base font-semibold">Reject "{{ rejectTarget()?.title }}"</h2>
         <button
-          type="button"
-          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          hlmIconBtn
+          class="-mr-1.5"
           aria-label="Close"
           title="Close"
           (click)="cancelReject()"
@@ -144,13 +144,7 @@
             </p>
           }
         </div>
-        <button
-          type="button"
-          class="text-muted-foreground hover:bg-muted hover:text-foreground -mr-1.5 flex size-8 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          aria-label="Close"
-          title="Close"
-          (click)="closePanel()"
-        >
+        <button hlmIconBtn class="-mr-1.5" aria-label="Close" title="Close" (click)="closePanel()">
           <svg
             viewBox="0 0 24 24"
             class="size-4"
