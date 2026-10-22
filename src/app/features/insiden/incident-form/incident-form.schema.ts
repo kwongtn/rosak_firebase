@@ -1,4 +1,4 @@
-import { maxLength, required, schema, validateTree } from "@angular/forms/signals";
+import { maxLength, required, schema, validate } from "@angular/forms/signals";
 import type { CalendarIncidentSeverity } from "../data/insiden.queries";
 
 /** The backend's `CalendarIncident.title` is `CharField(max_length=64)` and its input type has no
@@ -39,18 +39,13 @@ export const incidentFormSchema = schema<IncidentFormModel>((f) => {
   required(f.startDatetime, { message: "Select a start date and time" });
   required(f.severity, { message: "Select a severity" });
 
-  validateTree(f, ({ value }) => {
-    const model = value();
-    const errors = [];
-
-    if (model.startDatetime && model.endDatetime && model.endDatetime < model.startDatetime) {
-      errors.push({
-        kind: "required",
-        message: "End must not be before the start",
-        field: f.endDatetime,
-      });
-    }
-
-    return errors;
+  // A validator on End itself, so its message shows under End: an error a validateTree returns with
+  // a `field` key still lands on the form root, where no template reads it. Both values are
+  // datetime-local strings, which sort as times while they share that format.
+  validate(f.endDatetime, ({ value, valueOf }) => {
+    const start = valueOf(f.startDatetime);
+    return start && value() && value() < start
+      ? { kind: "endBeforeStart", message: "End must not be before the start" }
+      : undefined;
   });
 });

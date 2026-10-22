@@ -219,6 +219,21 @@ describe("IncidentFormComponent", () => {
     });
   });
 
+  it("says why under End when the end is before the start, and sends nothing", async () => {
+    sheet.open();
+    const component = asTestable(fixture);
+    component.model.set({ ...filledModel(), endDatetime: "2026-08-01T07:00" });
+    fixture.detectChanges();
+
+    await component.submit();
+    fixture.detectChanges();
+
+    expect(requestMock).not.toHaveBeenCalled();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      "End must not be before the start",
+    );
+  });
+
   it("submits a valid draft and chains submitCalendarIncident for non-admins", async () => {
     sheet.open();
     const component = asTestable(fixture);
