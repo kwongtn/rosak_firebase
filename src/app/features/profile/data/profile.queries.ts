@@ -1,4 +1,4 @@
-import { SpottingType, VehicleStatus } from "../../../core/graphql/types";
+import { SpottingType, SpottingVehicleStatus, VehicleStatus } from "../../../core/graphql/types";
 
 /* ---------------------------------------------------------------------- *
  * user — profile identity + stats + spotting trend + favourite vehicle.
@@ -337,7 +337,7 @@ export interface MyEvent {
   spottingDate: string;
   notes: string | null;
   created: string;
-  status: VehicleStatus;
+  status: SpottingVehicleStatus;
   type: SpottingType;
   runNumber: string | null;
   mediaCount: number;
